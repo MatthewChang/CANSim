@@ -1,5 +1,5 @@
 import time
-from encryption import *
+from rsa_encryption import *
 
 bus = [None]
 
@@ -19,6 +19,7 @@ class CAN_Message:
                return True
           else:
                return False
+
      def get_ack(self):
           return self.ack_bit == 1;
 
@@ -46,13 +47,16 @@ class CAN_Node():
      def setup(self):
           for o in self.out_ids:
                self.message_queue.append(CAN_Message(o,0,1))
+
      def try_write_to_bus(self,message,bus):
           if(bus[0] == None or message.id < bus[0].id):
                bus[0] = message
                return True
           return False
+
      def has_message(self):
           return len(self.message_queue) > 0
+
      def process(self,bus):
           print "StartBUS:",bus[0]
           if(self.has_message()): #If we have a message to write
