@@ -1,20 +1,29 @@
 import time
+import random
 from rsa_encryption import *
 
 bus = [None]
+random.seed()
 
 class CAN_Message:
-     def __init__(self,id,sig_bit,data):
+     def __init__(self,id,sig_bit,data,time):
           self.id = id
           self.sig_bit = sig_bit
           self.data = data
           self.ack_bit = 0
+          self.tag = self.create_tag(data)
+          self.creation_time = time #not part of the message, used for analysis
           assert self.valid_message(), "Invalid Message sizes";
 
+     def create_tag(self,m):
+          #TODO
+          return 0
+     
      def valid_message(self):
           if(self.id.bit_length() <= 10 and
              self.sig_bit.bit_length() <= 1 and
-             self.data.bit_length() <= 64 and
+             self.data.bit_length() <= 6*8 and
+             self.tag.bit_length() <= 2*8 and
              self.ack_bit.bit_length() <= 1):
                return True
           else:
@@ -35,18 +44,15 @@ def genSignature(message,e,n):
      return CAN_Message(message.id,1,sig)
      
 class CAN_Node():
-     def __init__(self):
+     def __init__(self,bp):
           self.message_queue = []
-          self.out_ids = []
-          self.in_map = {}
           self.private_key = None
           self.keys = []
           self.message_queue = []
           self.messages_sent = 0
+          self.total_latency = 0;
+          self.broadcast_properties = bp
           
-     def setup(self):
-          for o in self.out_ids:
-               self.message_queue.append(CAN_Message(o,0,1))
 
      def try_write_to_bus(self,message,bus):
           if(bus[0] == None or message.id < bus[0].id):
@@ -57,80 +63,65 @@ class CAN_Node():
      def has_message(self):
           return len(self.message_queue) > 0
 
-     def process(self,bus):
+     def process(self,bus,tick_number):
           print "StartBUS:",bus[0]
-          if(self.has_message()): #If we have a message to write
-               if(self.try_write_to_bus(self.message_queue[0],bus)): #Try to write it
-                    return #Return if wrote message
-
+          r = random.uniform(0,1)
+          for b,p in self.broadcast_properties.items():
+               if(r < p):
+                    self.message_queue.append(CAN_Message(b,0,1,tick_number))
+                                   
           if(bus[0] != None): #If there is a message on the bus
                if(self.has_message() and
                   bus[0].id == self.message_queue[0].id and
                   bus[0].get_ack()):
                     #Our message acked and made it back to us means all other nodes
                     #have seen it
-                    print "S: "+str(bus[0].id)
-                    self.message_queue = self.message_queue[1:]
+                    m = bus[0]
                     bus[0] = None
+                    print "S: "+str(m.id)
+                    self.message_queue = self.message_queue[1:]
                     self.messages_sent += 1
-                    return #Clear the bus for fairness
-                    
-               #if we've made it to here there was a message in the bus
-               #which was not our own so we ack
-               bus[0].ack()
-               i = bus[0].id
-               d = bus[0].data
-               if(i in self.in_map):
-                    print "Queue", i
-                    outid = self.in_map[i]
-                    for m in self.message_queue:
-                         if(m.id == outid):
-                              return #This prevents bad ack timing creating an infinite message queue
-                    self.message_queue.append(CAN_Message(outid,0,d+1))
+                    latency = tick_number - m.creation_time
+                    self.total_latency += latency
+               else:                         
+                    #if we've made it to here there was a message in the bus
+                    #which was not our own so we ack
+                    bus[0].ack()
+                    self.process_message(bus[0])
 
-     def __str__(self):
-          return "OUT_IDS: "+str(self.out_ids)+"IN_IDS: "+str(self.in_map)
-               
-connectivity = {0:[1,2,3,4,5],
-              1:[0],
-               2:[1],
-                3:[1],
-                4:[1],
-                5:[1]}
-connectivity_matrix = [ [0]*len(connectivity) for x in connectivity ]
-connection_index = 1
-for i,c in connectivity.items():
-     for j in c:
-          connectivity_matrix[i][j] = connection_index
-          connection_index += 1
-print connectivity_matrix
+          if(self.has_message()): #If we have a message to write
+               if(self.try_write_to_bus(self.message_queue[0],bus)): #Try to write it
+                    return #Return if wrote message
 
-nodes = [CAN_Node() for x in connectivity]
-
-connections = 0
-for i in range(0,len(nodes)):
-     for j in range(0,len(nodes)):
-          val = connectivity_matrix[i][j]
-          if(val != 0):
-               nodes[i].out_ids.append(val)
-               nodes[j].in_map[val]=connectivity_matrix[j][i]
           
-for o in nodes:
-     o.setup()
-     print o
+     def process_message(self,m):
+          return
+     
+     def __str__(self):
+          return ""
+               
+nodes = []
+nodes.append(CAN_Node({6: 0.2}))
+nodes.append(CAN_Node({0: 0.1}))
+nodes.append(CAN_Node({10: 0.3}))
 
 simticks = 100
 for i in xrange(simticks):
      for n in nodes:
-          n.process(bus)
+          n.process(bus,i)
 
 total_messages = 0
+total_latency = 0
 for i,n in enumerate(nodes):
-     print "Node",i," messages ",n.messages_sent
+     avg_latency = 0
+     if(n.messages_sent != 0):
+          avg_latency = 1.0*n.total_latency/n.messages_sent
+     print "Node:",i,"messages:",n.messages_sent,"avg latency:",avg_latency
      total_messages += n.messages_sent
+     total_latency += n.total_latency
 
 print "Messages:", total_messages
-print "Average Latency:", 1.0*total_messages/simticks
+print "Average Latency:", 1.0*total_latency/total_messages
 '''nodes.append(MotorController_Node())
 nodes.append(Motor_Node())
 simticks = 100
