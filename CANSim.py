@@ -46,6 +46,7 @@ class CAN_Node():
      def setup(self):
           for o in self.out_ids:
                self.message_queue.append(CAN_Message(o,0,1))
+               
      def try_write_to_bus(self,message,bus):
           if(bus[0] == None or message.id < bus[0].id):
                bus[0] = message
@@ -87,8 +88,12 @@ class CAN_Node():
      def __str__(self):
           return "OUT_IDS: "+str(self.out_ids)+"IN_IDS: "+str(self.in_map)
                
-connectivity = {0:[1],
-              1:[0]}
+connectivity = {0:[1,2,3,4,5],
+              1:[0],
+               2:[1],
+                3:[1],
+                4:[1],
+                5:[1]}
 connectivity_matrix = [ [0]*len(connectivity) for x in connectivity ]
 connection_index = 1
 for i,c in connectivity.items():
@@ -117,8 +122,12 @@ for i in xrange(simticks):
           n.process(bus)
 
 total_messages = 0
-for n in nodes:
+for i,n in enumerate(nodes):
+     print "Node",i," messages ",n.messages_sent
      total_messages += n.messages_sent
+
+print "Messages:", total_messages
+print "Average Latency:", 1.0*total_messages/simticks
 '''nodes.append(MotorController_Node())
 nodes.append(Motor_Node())
 simticks = 100
