@@ -1,7 +1,9 @@
 import hashlib
+import math
 import random
 import hmac
 import array
+import binascii
 
 class HashChain:
     ''' Creates a hash chain with given:
@@ -26,9 +28,9 @@ class HashChain:
 
         curr_tag = seed
         for i in range(length):
-            digest_maker = hmac.new(key, curr_tag, hash_function)
+            digest_maker = hmac.new(hmac_key, curr_tag, self.hash_function)
             tag = digest_maker.digest()[0:size_tag]
-            chain.append(tag)
+            self.chain.append(tag)
             curr_tag = tag
         self.chain.reverse()
         self.ptr = 0 #pointer to current (unused) position in authentication chain
@@ -74,10 +76,9 @@ class HashChain:
 
 '''Returns random n-bit number as a string. Useful for HMAC key and chain seed generation.'''
 def gen_str_key(n):
-    from random import getrandbits
-    from binascii import unhexlify
-    from math import ceil
-    return binascii.unhexlify('%x' % random.getrandbits(math.ceil(n/8)*8))
+    assert n % 8 == 0
+    byte_array = [random.getrandbits(8) for i in range(n/8)]
+    return str(bytearray(byte_array))
 
 if __name__ == "__main__":
     pass

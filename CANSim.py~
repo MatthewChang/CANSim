@@ -20,10 +20,11 @@ HASH_FN = 'sha256'
 
 class CAN_Message:
 
-    def __init__(self,id,tag,data,time,other=None):
+    def __init__(self,id,sig_bit,tag,data,time,other=''):
         self.id = id
-        self.tag = tag #MUST BE STRING
-        self.data = data #MUST BE STRING
+        self.sig_bit = sig_bit
+        self.tag = tag
+        self.data = data
         self.ack_bit = 0
         self.creation_time = time  # not part of the message, used for analysis
         self.other = other  # any other analysis meta-data we want to store
@@ -31,10 +32,11 @@ class CAN_Message:
 
     def valid_message(self):
         if self.id.bit_length() <= MAX_MESSAGE_ID_BYTE_SIZE \
-            and ((len(self.data) <= (8 - CHANNEL_TAG_BYTE_SIZE)
-                 and len(self.tag) <= CHANNEL_TAG_BYTE_SIZE)
-                 or (len(self.data) <= (8-CHANNEL_SETUP_SIGN_BYTE_SIZE) 
-                 and len(self.tag) <= CHANNEL_SETUP_SIGN_BYTE_SIZE)) \
+            and self.sig_bit.bit_length() <= 1 \
+            and (self.data.bit_length() <= (8 - TAG_BYTE_SIZE) * 8
+                 and self.tag.bit_length() <= TAG_BYTE_SIZE * 8
+                 or self.data.bit_length() <= (8-CHANNEL_SETUP_SIGN_BYTE_SIZE) * 8
+                 and self.tag.bit_length <= CHANNEL_SETUP_SIGN_BYTE_SIZE) \
             and self.ack_bit.bit_length() <= 1:
             return True
         else:
@@ -47,10 +49,7 @@ class CAN_Message:
         self.ack_bit = 1
 
     def __str__(self):
-        if self.other is None:
-            return  ' ID: ' +str(self.id)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' OTHER: None'
-        else:
-            return  ' ID: ' +str(self.id)+ ' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' OTHER: ' +self.other
+        return ('ID:',str(self.id),'SIG_BIT:',str(self.sig_bit),'DATA:',str(self.data),'ACK:',str(self.ack_bit),'OTHER:',other,)
 
 
 class CAN_Node:
@@ -86,7 +85,7 @@ class CAN_Node:
         r = random.uniform(0, 1)
         for (b, p) in self.broadcast_properties.items():
             if r < p:
-                self.message_queue.append(CAN_Message(b, "1", "1", tick_number))
+                self.message_queue.append(CAN_Message(b, 0, 1, 1,tick_number))
 
         if bus[0] != None:  # If there is a message on the bus
             if self.has_message() and bus[0].id == self.message_queue[0].id and bus[0].get_ack():
@@ -94,7 +93,7 @@ class CAN_Node:
                 # have seen it
                 m = bus[0]
                 bus[0] = None
-                print '\t',self.node_id,'taking its acked message off the bus: ' + str(m.id)
+                print 'S: ' + str(m.id)
                 self.message_queue = self.message_queue[1:]
                 self.messages_sent += 1
                 latency = tick_number - m.creation_time
@@ -115,15 +114,17 @@ class CAN_Node:
         channel_key = gen_str_key(HMAC_KEY_SIZE)
         seed = gen_str_key(HMAC_KEY_SIZE)
         signature = rsa.sign(channel_key, self.private_key, 'SHA-256')
-        self.hash_chain = HashChain(seed, num_messages, CHANNEL_TAG_BYTE_SIZE,
+        self.hash_chain = HashChain(seed, num_messages, TAG_BYTE_SIZE,
                                     channel_key, HASH_FN)
 
         # breaks down key, signature into separate messages to send
 
-        for i in xrange(int(math.ceil(HMAC_KEY_SIZE / 4))):
+        for i in xrange(math.ceil(HMAC_KEY_SIZE / 4)):
             tag = signature[i * 4:(i + 1) * 4]
             data = channel_key[i * 4:(i + 1) * 4]
-            self.message_queue.append(CAN_Message(self.node_id,tag,data,tick_number,other='[channel setup message]'))
+            self.message_queue.append(CAN_Message(node_id,0,tag,data,tick_number,other='[channel setup message]'))
+
+        write_channel_setup_message(channel_key, signature)
 
         # Announce creation of hashchain on the network
 
@@ -157,7 +158,6 @@ class CAN_Node:
 node0 = CAN_Node(0, {2: 0.2}, public_keys)
 node1 = CAN_Node(1, {8: 0.1}, public_keys)
 node2 = CAN_Node(2, {4: 0.3}, public_keys)
-node0.setup_write_channel(10)
 nodes = [node0, node1, node2]
 
 simticks = 100
@@ -172,7 +172,8 @@ for (i, n) in enumerate(nodes):
     avg_latency = 0
     if n.messages_sent != 0:
         avg_latency = 1.0 * n.total_latency / n.messages_sent
-    print 'Node:', i, 'messages:', n.messages_sent, 'avg latency:', avg_latency
+    print 'Node:', i, 'messages:', n.messages_sent, 'avg latency:', \
+        avg_latency
     total_messages += n.messages_sent
     total_latency += n.total_latency
 
