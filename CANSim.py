@@ -16,10 +16,6 @@ class CAN_Message:
           self.creation_time = time #not part of the message, used for analysis
           assert self.valid_message(), "Invalid Message sizes";
 
-     def create_tag(self,m):
-          #TODO
-          return 0
-     
      def valid_message(self):
           if(self.id.bit_length() <= 10 and
              self.sig_bit.bit_length() <= 1 and
@@ -60,7 +56,7 @@ class CAN_Node():
           return len(self.message_queue) > 0
 
      def process(self,bus,tick_number):
-          print "StartBUS:",bus[0]
+          print "StartBUS:", bus[0]
           r = random.uniform(0,1)
           for b,p in self.broadcast_properties.items():
                if(r < p):
@@ -96,6 +92,12 @@ class CAN_Node():
      def __str__(self):
           return ""
                
+#assign each node ID
+#setup public, private key for each node
+#setup HMAC chain channels
+#send traffic through channels
+#refresh chain
+
 nodes = []
 nodes.append(CAN_Node({6: 0.2}))
 nodes.append(CAN_Node({0: 0.1}))
