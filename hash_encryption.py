@@ -35,6 +35,12 @@ class HashChain:
         self.chain.reverse()
         self.ptr = 0 #pointer to current (unused) position in authentication chain
 
+    def get_init_value(self):
+        assert self.ptr == 0 #make sure that initial value is accessed only once
+        self.ptr += 1
+        return self.chain[0]
+        
+
     ''' Based on the message to be sent and the current position in 
             the hash chain, return the next tag to use'''
     def get_next_tag(self, message):
@@ -51,6 +57,9 @@ class HashChain:
 
     def __repr__(self):
         return self.chain
+
+    def __str__(self):
+        return str(self.chain)
 
     def evaluate_hash(byte_obj):
         return self.hash_function(byte_obj).digest()
