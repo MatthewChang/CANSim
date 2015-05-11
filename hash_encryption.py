@@ -39,8 +39,10 @@ class HashChain:
         assert self.ptr <= self.chain_length
         chain_tag_bytes = array.array('B', self.chain[self.ptr])
         message_bytes = array.array('B', evaluate_hash(message)[0:self.size_tag])
-        for i in xrange(size_tag):
+
+        for i in xrange(size_tag): #XOR corresponding bytes
             chain_tag_bytes = chain_tag_bytes[i] ^ message_bytes[i]
+
         self.ptr += 1
         if self.ptr >= self.chain_length: self.is_stale = True
         return chain_tag_bytes.tostring()
@@ -52,7 +54,8 @@ class HashChain:
         return self.hash_function(byte_obj).digest()
 
     '''Reverses get_next_tag. Takes the message tag, and the paired message,
-            and determines the original tag in the chain'''
+            and determines the original tag in the chain. XORs the message
+            with the tag'''
     def __unwrap_tag(tag, message):
         chain_tag_bytes = array.array('B', tag)
         message_bytes = array.array('B', evaluate_hash(message)[0:self.size_tag])
@@ -69,12 +72,12 @@ class HashChain:
         correct_tag = digest_maker.digest()[0:size_tag]
         return correct_tag == prev_chain_tag
 
-'''Returns random n-bit number as a string'''
-def gen_hmac_key(n):
-    import random
+'''Returns random n-bit number as a string. Useful for HMAC key and chain seed generation.'''
+def gen_str_key(n):
+    from random import getrandbits
     from binascii import unhexlify
     from math import ceil
     return binascii.unhexlify('%x' % random.getrandbits(math.ceil(n/8)*8))
 
 if __name__ == "__main__":
- 
+    pass
