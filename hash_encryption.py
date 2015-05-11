@@ -1,78 +1,80 @@
-from hashlib import sha256
+import hashlib
+import random
 import hmac
+import array
 
-def create_hash_chain(seed, key, length, hash_function, length_tag_bits):
-    chain = []
-    curr_tag = seed
-    for i in range(length):
-        digest_maker = hmac.new(key, hash_function)
-        digest_maker.update(curr_tag)
-        
+class HashChain:
+    ''' Creates a hash chain with given:
+            initial value (seed)
+            length of chain (length)
+            size in bytes of each tag in the chain (size_tag)
+            To define the HMAC/keyed hash function a key
+                and hash function (hmac_key and hash_function)
+            Note: hash_function must be string of the function
+                name from Python's hashlib (e.g. 'sha256')
+                and key must be a string
+    '''
+    def __init__(self, seed, length, size_tag, hmac_key, hash_function_str):
 
-create_hash_function(111, 111, 10, sha256)
- 
+        assert size_tag > 0 and length > 1
+        self.chain = [seed] #ordered list of authentication tags
+        self.size_tag = size_tag
+        self.seed = seed
+        self.chain_length = length
+        self.hash_function = getattr(hashlib, hash_function_str)
+        self.is_stale = False #tracks whether the chain is used up
+
+        curr_tag = seed
+        for i in range(length):
+            digest_maker = hmac.new(key, curr_tag, hash_function)
+            tag = digest_maker.digest()[0:size_tag]
+            chain.append(tag)
+            curr_tag = tag
+        self.chain.reverse()
+        self.ptr = 0 #pointer to current (unused) position in authentication chain
+
+    ''' Based on the message to be sent and the current position in 
+            the hash chain, return the next tag to use'''
+    def get_next_tag(self, message):
+        assert self.ptr <= self.chain_length
+        chain_tag_bytes = array.array('B', self.chain[self.ptr])
+        message_bytes = array.array('B', evaluate_hash(message)[0:self.size_tag])
+        for i in xrange(size_tag):
+            chain_tag_bytes = chain_tag_bytes[i] ^ message_bytes[i]
+        self.ptr += 1
+        if self.ptr >= self.chain_length: self.is_stale = True
+        return chain_tag_bytes.tostring()
+
+    def __repr__(self):
+        return self.chain
+
+    def evaluate_hash(byte_obj):
+        return self.hash_function(byte_obj).digest()
+
+    '''Reverses get_next_tag. Takes the message tag, and the paired message,
+            and determines the original tag in the chain'''
+    def __unwrap_tag(tag, message):
+        chain_tag_bytes = array.array('B', tag)
+        message_bytes = array.array('B', evaluate_hash(message)[0:self.size_tag])
+        for i in xrange(size_tag):
+            chain_tag_bytes = chain_tag_bytes[i] ^ message_bytes[i]
+        return chain_tag_bytes.tostring()
+
+    @staticmethod
+    def authenticate(prev_tag, prev_message, curr_tag, curr_message, hmac_key, hash_function_str, size_tag):
+        prev_chain_tag = __unwrap_tag(prev_tag, pre_message)
+        curr_chain_tag = __unwrap_tag(curr_tag, curr_message)
+        hash_function = getattr(hashlib, hash_function_str)
+        digest_maker = hmac.new(hmac_key, curr_tag, hash_function)
+        correct_tag = digest_maker.digest()[0:size_tag]
+        return correct_tag == prev_chain_tag
+
+'''Returns random n-bit number as a string'''
+def gen_hmac_key(n):
+    import random
+    from binascii import unhexlify
+    from math import ceil
+    return binascii.unhexlify('%x' % random.getrandbits(math.ceil(n/8)*8))
+
 if __name__ == "__main__":
  
-    from math import log10
-    from time import time
- 
-    def printHexList(intList):
-        """Print ciphertext in hex"""
-        for index, elem in enumerate(intList):
-            if index % 32 == 0:
-                print()            
-            print "{:02x}".format(elem)
-        print()
- 
-    def printLargeInteger(number):
-        """Print long primes in a formatted way"""
-        string = "{:02x}".format(number)
-        for j in range(len(string)):
-            if j % 64 == 0:
-                print()
-            print string[j]
-        print()
- 
-    def testCase(p, q, msg, nTimes = 1):
-        """Execute test case: generate keys, encrypt message and
-           decrypt resulting ciphertext"""
-        print("Key size: {:0d} bits".format(int(round(log10(p * q) / log10(2)))))
-        print("Prime #1:")
-        printLargeInteger(p)
-        print("Prime #2:")
-        printLargeInteger(q)
-        print("Plaintext:", msg)
-        pk, sk, mod = genRSA(p, q)
-        ctext = encrypt(msg, pk, mod)
-        print("Ciphertext:")
-        printHexList(ctext)
-        ptext = decrypt(ctext, sk, p, q)
-        print("Recovered plaintext:", ptext, "\n")
- 
-    # First test: RSA-129 (see http://en.wikipedia.org/wiki/RSA_numbers#RSA-129)
-    p1 = 3490529510847650949147849619903898133417764638493387843990820577
-    p2 = 32769132993266709549961988190834461413177642967992942539798288533
-    #testCase(p1, p2, "The Magic Words are Squeamish Ossifrage", 1000)
-   
-    # Second test: random primes (key size: 512 to 4096 bits)
-    '''
-    for n in [64]:    
-        t1 = time()
-        p5 = getPrime(n)
-        t2 = time()
-        print("Elapsed time for {:0d}-bit prime ".format(n))
-        print("generation: {:0.3f} s".format(round(t2 - t1, 3)))
-        t3 = time()
-        p6 = getPrime(n)
-        t4 = time()
-        print("Elapsed time for {:0d}-bit prime ".format(n))
-        print("generation: {:0.3f} s".format(round(t4 - t3, 3)))
-        testCase(p5, p6, "It's all greek to me")
-    '''
-
-    '''
-    e,d,n = genRSA_bits(64)
-    print e,d,n,n.bit_length()
-    cypher = enc(123456,e,n)
-    print dec(cypher,d,n)
-    '''

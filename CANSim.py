@@ -1,6 +1,7 @@
 import time
 import random
 from rsa_encryption import *
+from hash_encryption import *
 
 bus = [None]
 random.seed()
@@ -38,11 +39,6 @@ class CAN_Message:
      def __str__(self):
           return "ID: "+str(self.id)+" SIG_BIT: "+str(self.sig_bit)+" DATA: "+str(self.data)+" ACK: "+str(self.ack_bit)
 
-def genSignature(message,e,n):
-     data = message.data
-     sig = pow(data,e,n)
-     return CAN_Message(message.id,1,sig)
-     
 class CAN_Node():
      def __init__(self,bp):
           self.message_queue = []
@@ -122,6 +118,7 @@ for i,n in enumerate(nodes):
 
 print "Messages:", total_messages
 print "Average Latency:", 1.0*total_latency/total_messages
+
 '''nodes.append(MotorController_Node())
 nodes.append(Motor_Node())
 simticks = 100
