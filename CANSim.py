@@ -55,10 +55,10 @@ class CAN_Message:
         self.ack_bit = 1
 
     def __str__(self):
-        if auth:
-            return  ' ID: ' +str(self.id)+' SOURCE: '+str(self.source)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' AUTH'
+        if self.auth:
+            return  ' ID: ' +str(self.id)+' SOURCE: '+str(self.source)+' TAG '+str(self.tag)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' AUTH'
         else:
-            return  ' ID: ' +str(self.id)+ ' SOURCE: '+str(self.source)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' DATA'
+            return  ' ID: ' +str(self.id)+ ' SOURCE: '+str(self.source)+' TAG '+str(self.tag)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' DATA'
 
 
 class CAN_Node:
@@ -68,8 +68,9 @@ class CAN_Node:
         assert node_id < MAX_NODE_ID
 
         self.message_queue = []
-        self.channel_keys = {} #source ID:(hmac_key, most recent_tag)
-        self.channel_setup = {} #source ID:(growing signature, growing hmac key)
+        self.channel_keys = {} #source ID:[hmac_key, most recent_tag, most_recent_message]
+        self.channel_setup = {} #source ID:[growing signature, growing hmac key]
+        self.verified_data = {} #source ID:[data1, data2,...],
         self.message_queue = []
         self.messages_sent = 0
         self.total_latency = 0
@@ -126,7 +127,7 @@ class CAN_Node:
         signature = rsa.sign(channel_key, self.private_key, 'SHA-256')
         self.hash_chain = HashChain(seed, num_messages, CHANNEL_TAG_BYTE_SIZE,
                                     channel_key, HASH_FN)
-        init_value = self.hash_chain.get_init_value()
+        init_tag,init_message = self.hash_chain.get_init_tag()
         
         # breaks down key, signature into separate messages to send
         # only work if using SHA-256 and HMAC_KEY_SIZE = 512
@@ -136,7 +137,10 @@ class CAN_Node:
             self.message_queue.append(CAN_Message(self.node_id,self.node_id,tag,data,tick_number,auth=True))
             if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
 
-        # Announce creation of hashchain on the network
+        #send out initial value
+        self.message_queue.append(CAN_Message(1024+self.node_id,self.node_id,init_tag,init_message,tick_number,auth=False))
+        if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
+
 
         if debug: print '\t', self.node_id, 'setting up write channel with key', \
             channel_key
@@ -155,7 +159,7 @@ class CAN_Node:
             if len(self.channel_setup[source_id][1]) == HMAC_KEY_SIZE/8:
                 #we recieved all the necessary data to verify
                 if rsa.verify(self.channel_setup[source_id][1], self.channel_setup[source_id][0], public_keys[source_id]):
-                    self.channel_keys[source_id] = (self.channel_setup[source_id][1], None)
+                    self.channel_keys[source_id] = [self.channel_setup[source_id][1], None, None]
                     if debug: print self.node_id,': NEW CHANNEL VERIFIED'
                     if log: logfile.write(str(tick_number) + " NEWCHANNELCREATION VERIFIED NODE" + str(self.node_id) + "\n")
                 else:
@@ -164,7 +168,24 @@ class CAN_Node:
             
         else:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
-            if debug: print '\t', self.node_id, 'read a data tranmission message'
+            if m.source not in self.channel_keys: return
+            else:
+                if self.channel_keys[m.source][1] == None: #this must be the initial value message of the chain
+                    self.channel_keys[m.source][1] = m.tag
+                    self.channel_keys[m.source][2] = m.data
+                    self.verified_data[m.source] = [m.data]
+                    if debug: print '\t', self.node_id, 'read a initial value message tranmission'
+                else:
+                    key = self.channel_keys[m.source][0]
+                    prev_tag = self.channel_keys[m.source][1]
+                    prev_message = self.channel_keys[m.source][2]
+                    if HashChain.authenticate(prev_tag, prev_message, m.tag, m.data, key, HASH_FN, CHANNEL_TAG_BYTE_SIZE):
+                        if debug: print self.node_id, 'verified message data %s,%s sent over channel!' % m.data,m.id
+                        self.verified_data[m.source].append(m.data)
+                        self.channel_keys[m.source] = [key, m.tag, m.data]
+                    else:
+                        if debug: print self.node_id, 'found spoof message data s sent over channel!'
+                        
 
     def __str__(self):
         return ''
@@ -235,7 +256,6 @@ for i in xrange(simticks):
             if log: logfile.write(str(i) + ' BUS_HEAD NONE\n')
         avg_latency(n, i)
         total_messages(n, i)
-
 
 print 'Public Keys:', public_keys
 
