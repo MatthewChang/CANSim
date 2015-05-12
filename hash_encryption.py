@@ -23,6 +23,7 @@ class HashChain:
         self.size_tag = size_tag
         self.seed = seed
         self.chain_length = length
+        self.hmac_key = hmac_key
         self.hash_function = getattr(hashlib, hash_function_str)
         self.is_stale = False #tracks whether the chain is used up
 
@@ -35,24 +36,27 @@ class HashChain:
         self.chain.reverse()
         self.ptr = 0 #pointer to current (unused) position in authentication chain
 
-    def get_init_value(self):
+    def get_init_tag(self):
         assert self.ptr == 0 #make sure that initial value is accessed only once
-        self.ptr += 1
-        return self.chain[0]
-        
+        INITIAL_MESSAGE = 'INIT20'
+        init_tag = self.get_next_tag(INITIAL_MESSAGE)
+        return init_tag, INITIAL_MESSAGE
+
+    def evaluate_hash(self, byte_obj):
+        return self.hash_function(byte_obj).digest()
 
     ''' Based on the message to be sent and the current position in 
             the hash chain, return the next tag to use'''
     def get_next_tag(self, message):
-        assert self.ptr <= self.chain_length
+        assert not self.is_stale
         chain_tag_bytes = array.array('B', self.chain[self.ptr])
-        message_bytes = array.array('B', evaluate_hash(message)[0:self.size_tag])
+        message_bytes = array.array('B', self.evaluate_hash(message)[0:self.size_tag])
 
-        for i in xrange(size_tag): #XOR corresponding bytes
-            chain_tag_bytes = chain_tag_bytes[i] ^ message_bytes[i]
+        for i in xrange(self.size_tag): #XOR corresponding bytes
+            chain_tag_bytes[i] = chain_tag_bytes[i] ^ message_bytes[i]
 
         self.ptr += 1
-        if self.ptr >= self.chain_length: self.is_stale = True
+        if self.ptr > self.chain_length: self.is_stale = True
         return chain_tag_bytes.tostring()
 
     def __repr__(self):
@@ -61,24 +65,29 @@ class HashChain:
     def __str__(self):
         return str(self.chain)
 
-    def evaluate_hash(byte_obj):
-        return self.hash_function(byte_obj).digest()
+    #Same as evaluate hash before, but doesn't use instance hash function
+    @staticmethod
+    def evaluate_hash2(byte_obj, hash_func):
+        return hash_func(byte_obj).digest()
 
     '''Reverses get_next_tag. Takes the message tag, and the paired message,
             and determines the original tag in the chain. XORs the message
             with the tag'''
-    def __unwrap_tag(tag, message):
+    @staticmethod
+    def __unwrap_tag(tag, message, hash_func, size_tag):
         chain_tag_bytes = array.array('B', tag)
-        message_bytes = array.array('B', evaluate_hash(message)[0:self.size_tag])
+        message_bytes = array.array('B', HashChain.evaluate_hash2(message, hash_func)[0:size_tag])
+        print chain_tag_bytes, message_bytes
         for i in xrange(size_tag):
-            chain_tag_bytes = chain_tag_bytes[i] ^ message_bytes[i]
+            chain_tag_bytes[i] = chain_tag_bytes[i] ^ message_bytes[i]
         return chain_tag_bytes.tostring()
 
     @staticmethod
     def authenticate(prev_tag, prev_message, curr_tag, curr_message, hmac_key, hash_function_str, size_tag):
-        prev_chain_tag = __unwrap_tag(prev_tag, pre_message)
-        curr_chain_tag = __unwrap_tag(curr_tag, curr_message)
+        if len(prev_tag) != size_tag or len(curr_tag) != size_tag: return False
         hash_function = getattr(hashlib, hash_function_str)
+        prev_chain_tag = HashChain.__unwrap_tag(prev_tag, prev_message, hash_function, size_tag)
+        curr_chain_tag = HashChain.__unwrap_tag(curr_tag, curr_message, hash_function, size_tag)
         digest_maker = hmac.new(hmac_key, curr_tag, hash_function)
         correct_tag = digest_maker.digest()[0:size_tag]
         return correct_tag == prev_chain_tag
