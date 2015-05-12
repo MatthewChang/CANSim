@@ -119,14 +119,14 @@ class CAN_Node:
 
         channel_key = gen_str_key(HMAC_KEY_SIZE)
         seed = gen_str_key(HMAC_KEY_SIZE)
-        signature = rsa.sign(channel_key, self.private_key, 'SHA-1')
+        signature = rsa.sign(channel_key, self.private_key, 'SHA-256')
         self.hash_chain = HashChain(seed, num_messages, CHANNEL_TAG_BYTE_SIZE,
                                     channel_key, HASH_FN)
         init_value = self.hash_chain.get_init_value()
         
         # breaks down key, signature into separate messages to send
-        # only work if using SHA-256 and HMAC_KEY_SIZE = 256
-        for i in xrange(int(math.ceil(HMAC_KEY_SIZE / 4))):
+        # only work if using SHA-256 and HMAC_KEY_SIZE = 512
+        for i in xrange(int(math.ceil(HMAC_KEY_SIZE / (8*4)))):
             tag = signature[i * 4:(i + 1) * 4]
             data = channel_key[i * 4:(i + 1) * 4]
             self.message_queue.append(CAN_Message(self.node_id,-1,tag,data,tick_number,other='[channel setup message]'))
@@ -188,8 +188,9 @@ nodes = [node0, node1, node2]
 
 simticks = 100
 for i in xrange(simticks):
+    print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
+    print 'node0:', len(node0.message_queue), 'node1:', len(node1.message_queue), 'node2:', len(node2.message_queue)
     for n in nodes:
-        print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
         n.process(bus, i)
 
 total_messages = 0
