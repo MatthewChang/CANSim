@@ -6,6 +6,14 @@ import rsa  # 3rd party library: sudo pip install rsa
 import math
 from hash_encryption import *
 
+#TODO:
+#   replace node names with actual names
+#   authenticate outgoing messages
+#   create real traffic, one malicious node
+#   change print statements to message transmits/recieves
+#   be able to turn on and off authentication
+#   refresh channel?
+
 bus = [None]
 public_keys = {}
 random.seed()
