@@ -15,9 +15,10 @@ HMAC_KEY_SIZE = 512
 CHANNEL_TAG_BYTE_SIZE = 2
 CHANNEL_SETUP_SIGN_BYTE_SIZE = 4
 MAX_MESSAGE_ID_BYTE_SIZE = 11
+MAX_NODE_ID = 2**(MAX_MESSAGE_ID_BYTE_SIZE-1)
 HASH_FN = 'sha256'
 
-debug = True
+debug = False
 
 
 class CAN_Message:
@@ -60,7 +61,7 @@ class CAN_Node:
 
     def __init__(self,node_id,bp,public_keys):
 
-        assert node_id < 2048
+        assert node_id < MAX_NODE_ID
 
         self.message_queue = []
         self.channel_keys = {} #source ID:(hmac_key, most recent_tag)
@@ -123,9 +124,6 @@ class CAN_Node:
                                     channel_key, HASH_FN)
         init_value = self.hash_chain.get_init_value()
         
-        print channel_key, len(channel_key)
-        print signature, len(signature)
-
         # breaks down key, signature into separate messages to send
         # only work if using SHA-256 and HMAC_KEY_SIZE = 256
         for i in xrange(int(math.ceil(HMAC_KEY_SIZE / 4))):
@@ -140,9 +138,9 @@ class CAN_Node:
             channel_key
 
     def process_message(self, m):
-        if m.id < 2048:
+        if m.id < MAX_NODE_ID:
             #checks if this message is a channel setup message (MSB is 0)
-            # message ID is 11 bits, MSB is 0 iff number is < 2048
+            # message ID is 11 bits, MSB is 0 iff number is < 1024
             source_id = m.id
             if source_id in self.channel_setup:
                 self.channel_setup[source_id][0] += m.tag
@@ -150,10 +148,10 @@ class CAN_Node:
             else:
                 self.channel_setup[source_id] = [m.tag, m.data]
 
-            if len(self.channel_setup[source_id][1]) == HMAC_KEY_SIZE:
+            if len(self.channel_setup[source_id][1]) == HMAC_KEY_SIZE/8:
                 #we recieved all the necessary data to verify
                 if rsa.verify(self.channel_setup[source_id][1], self.channel_setup[source_id][0], public_keys[source_id]):
-                    self.channel_data[source_id] = (self.channel_data[source_id][1], None)
+                    self.channel_keys[source_id] = (self.channel_setup[source_id][1], None)
                     print self.node_id,': NEW CHANNEL VERIFIED'
                 else:
                     print self.node_id,': CHANNEL SPOOF DETECTED'
@@ -182,16 +180,16 @@ class CAN_Node:
 # send traffic through channels
 # refresh chain
 
-node0 = CAN_Node(0, {2: 0.2}, public_keys)
-node1 = CAN_Node(1, {8: 0.1}, public_keys)
-node2 = CAN_Node(2, {4: 0.3}, public_keys)
+node0 = CAN_Node(0, {2000: 0.2}, public_keys)
+node1 = CAN_Node(1, {2002: 0.1}, public_keys)
+node2 = CAN_Node(2, {2004: 0.3}, public_keys)
 node0.setup_write_channel(10)
 nodes = [node0, node1, node2]
 
 simticks = 100
 for i in xrange(simticks):
     for n in nodes:
-        if debug: print 'Start of BUS:', bus[0]
+        print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
         n.process(bus, i)
 
 total_messages = 0
