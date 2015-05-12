@@ -186,12 +186,6 @@ class CAN_Node:
 # send traffic through channels
 # refresh chain
 
-node0 = CAN_Node(0, {2000: 0.2}, public_keys)
-node1 = CAN_Node(1, {2002: 0.1}, public_keys)
-node2 = CAN_Node(2, {2004: 0.3}, public_keys)
-node0.setup_write_channel(10)
-nodes = [node0, node1, node2]
-
 def avg_latency(node,timestamp=0):
     avg_latency = 0
     if node.messages_sent != 0:
@@ -203,29 +197,35 @@ def total_messages(node,timestamp=0):
     if log: logfile.write(str(timestamp) + " TOTALM NODE" + str(node.node_id) + " " + str(node.messages_sent) + "\n")
     return node.messages_sent
 
-def system_total_message(timestamp):
+def system_total_message():
     total_messages = 0
     for n in nodes:
         total_messages += n.messages_sent
     if log: logfile.write(str(timestamp) + " STOTALM " + str(total_messages) + "\n")
 
-def system_avg_latency(timestamp):
+def system_avg_latency():
     total_messages = 0
     total_latency = 0
     for n in nodes:
         total_messages += n.messages_sent
-        total_latency += n.total_latency
+        total_latency + = n.total_latency
     if total_messages != 0:
         if log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(1.0*total_latency/total_messages) + "\n")
     else:
         if log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(0) + "\n")
+    
+    
+
+node0 = CAN_Node(0, {2000: 0.2}, public_keys)
+node1 = CAN_Node(1, {2002: 0.1}, public_keys)
+node2 = CAN_Node(2, {2004: 0.3}, public_keys)
+node0.setup_write_channel(10)
+nodes = [node0, node1, node2]
 
 simticks = 100
 for i in xrange(simticks):
     if debug: print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
     if debug: print 'node0:', len(node0.message_queue), 'node1:', len(node1.message_queue), 'node2:', len(node2.message_queue)
-    system_avg_latency(i)
-    system_total_message(i)
     for n in nodes:
         n.process(bus, i)
         if log: logfile.write(str(i) + " STATUS NODE" + str(n.node_id) + " " + str(len(n.message_queue)) + "\n")
@@ -233,10 +233,10 @@ for i in xrange(simticks):
             if log: logfile.write(str(i) + " BUS_HEAD NODE" + str(bus[0].source) + " " + str(bus[0].id) + " " + str(bus[0].tag) + " " + str(bus[0].data) + "\n")
         else:
             if log: logfile.write(str(i) + ' BUS_HEAD NONE\n')
-        avg_latency(n, i)
-        total_messages(n, i)
 
 
+print 'Messages:', total_messages
+print 'Average Latency:', 1.0 * total_latency / total_messages
 print 'Public Keys:', public_keys
 
 logfile.close()
