@@ -4,6 +4,7 @@ import time
 import random
 import rsa  # 3rd party library: sudo pip install rsa
 import math
+import logging
 from hash_encryption import *
 
 bus = [None]
@@ -19,6 +20,7 @@ HASH_FN = 'sha256'
 
 debug = True
 
+logging.basicConfig(filename='example.log', filemode='w', level=logging.INFO)
 
 class CAN_Message:
 
@@ -79,7 +81,7 @@ class CAN_Node:
     def try_write_to_bus(self, message, bus):
         if bus[0] == None or message.id < bus[0].id:
             bus[0] = message
-            if debug: print '\t', self.node_id, 'wrote to BUS:', message
+            logging.info('\t' + str(self.node_id) + ' wrote to BUS: ' +  str(message))
             return True
         return False
 
@@ -98,7 +100,7 @@ class CAN_Node:
                 # have seen it
                 m = bus[0]
                 bus[0] = None
-                if debug: print '\t',self.node_id,'taking its acked message off the bus: ' + str(m.id)
+                logging.info('\t' + str(self.node_id) + ' taking its acked message off the bus: ' + str(m.id))
                 self.message_queue = self.message_queue[1:]
                 self.messages_sent += 1
                 latency = tick_number - m.creation_time
@@ -122,7 +124,7 @@ class CAN_Node:
         self.hash_chain = HashChain(seed, num_messages, CHANNEL_TAG_BYTE_SIZE,
                                     channel_key, HASH_FN)
         init_value = self.hash_chain.get_init_value()
-        
+
         print channel_key, len(channel_key)
         print signature, len(signature)
 
@@ -132,12 +134,11 @@ class CAN_Node:
             tag = signature[i * 4:(i + 1) * 4]
             data = channel_key[i * 4:(i + 1) * 4]
             self.message_queue.append(CAN_Message(self.node_id,-1,tag,data,tick_number,other='[channel setup message]'))
-            if debug: print '\t', self.node_id, 'wrote channel setup message to BUS'
+            logging.info('\t' + str(self.node_id) + ' wrote channel setup message to BUS')
 
         # Announce creation of hashchain on the network
 
-        if debug: print '\t', self.node_id, 'setting up write channel with key', \
-            channel_key
+        logging.info('\t' + str(self.node_id) + ' setting up write channel with key ' + channel_key)
 
     def process_message(self, m):
         if m.id < 2048:
@@ -157,10 +158,10 @@ class CAN_Node:
                     print self.node_id,': NEW CHANNEL VERIFIED'
                 else:
                     print self.node_id,': CHANNEL SPOOF DETECTED'
-            
+
         else:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
-            if debug: print '\t', self.node_id, 'read a data tranmission message'
+            logging.info('\t' + str(self.node_id) + ' read a data tranmission message')
 
     def __str__(self):
         return ''
@@ -190,8 +191,9 @@ nodes = [node0, node1, node2]
 
 simticks = 100
 for i in xrange(simticks):
+    logging.warning('NOW IN LEVEL ' + str(i))
     for n in nodes:
-        if debug: print 'Start of BUS:', bus[0]
+        logging.info('Start of BUS: ' + str(bus[0]))
         n.process(bus, i)
 
 total_messages = 0
@@ -209,4 +211,4 @@ print 'Average Latency:', 1.0 * total_latency / total_messages
 print 'Public Keys:', public_keys
 
 
-			
+
