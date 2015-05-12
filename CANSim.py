@@ -10,6 +10,9 @@ bus = [None]
 public_keys = {}
 random.seed()
 
+LOG_FILE_NAME = 'cansim.log'
+logfile = open(LOG_FILE_NAME,'w')
+
 RSA_KEY_SIZE = 512
 HMAC_KEY_SIZE = 512
 CHANNEL_TAG_BYTE_SIZE = 2
@@ -19,30 +22,31 @@ MAX_NODE_ID = 2**(MAX_MESSAGE_ID_BYTE_SIZE-1)
 HASH_FN = 'sha256'
 
 debug = False
+log = True
 
 
 class CAN_Message:
 
-    def __init__(self,id,source,tag,data,time,other=None):
+    def __init__(self,id,source,tag,data,time,auth=False):
         self.id = id
         self.tag = tag #MUST BE STRING
         self.data = data #MUST BE STRING
         self.ack_bit = 0
         self.source = source #INTEGER from 0-256
         self.creation_time = time  # not part of the message, used for analysis
-        self.other = other  # any other analysis meta-data we want to store
+        self.auth = auth  # any other analysis meta-data we want to store
         assert self.valid_message(), 'Invalid Message sizes'
 
     def valid_message(self):
         if self.id.bit_length() > MAX_MESSAGE_ID_BYTE_SIZE: return False
         if self.ack_bit.bit_length() > 1: return False
-        if self.source == -1:
+        if self.source < 0 or self.source > 255: return False
+        if self.auth:
             if len(self.data) > CHANNEL_SETUP_SIGN_BYTE_SIZE or len(self.tag) > (8-CHANNEL_SETUP_SIGN_BYTE_SIZE): return False
             return True
-        elif self.source >=0 and self.source < 265:
+        else:
             if len(self.tag) > CHANNEL_TAG_BYTE_SIZE or len(self.data) > (8-CHANNEL_TAG_BYTE_SIZE): return False
             return True
-        else: return False
 
     def get_ack(self):
         return self.ack_bit == 1
@@ -51,10 +55,10 @@ class CAN_Message:
         self.ack_bit = 1
 
     def __str__(self):
-        if self.other is None:
-            return  ' ID: ' +str(self.id)+' SOURCE: '+str(self.source)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' OTHER: None'
+        if auth:
+            return  ' ID: ' +str(self.id)+' SOURCE: '+str(self.source)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' AUTH'
         else:
-            return  ' ID: ' +str(self.id)+ ' SOURCE: '+str(self.source)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' OTHER: ' +self.other
+            return  ' ID: ' +str(self.id)+ ' SOURCE: '+str(self.source)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' DATA'
 
 
 class CAN_Node:
@@ -77,10 +81,11 @@ class CAN_Node:
         public_keys[node_id] = pub_key
         self.private_key = priv_key
 
-    def try_write_to_bus(self, message, bus):
+    def try_write_to_bus(self, message, bus, tick_number):
         if bus[0] == None or message.id < bus[0].id:
             bus[0] = message
             if debug: print '\t', self.node_id, 'wrote to BUS:', message
+            if log: logfile.write(str(tick_number) + " MESSAGE DATA NODE" + str(self.node_id) + "\n")
             return True
         return False
 
@@ -91,7 +96,7 @@ class CAN_Node:
         r = random.uniform(0, 1)
         for (b, p) in self.broadcast_properties.items():
             if r < p:
-                self.message_queue.append(CAN_Message(b, self.node_id, "1", "1", tick_number))
+                self.message_queue.append(CAN_Message(b, self.node_id, "1", "1", tick_number, auth=False))
 
         if bus[0] != None:  # If there is a message on the bus
             if self.has_message() and bus[0].id == self.message_queue[0].id and bus[0].get_ack():
@@ -99,7 +104,6 @@ class CAN_Node:
                 # have seen it
                 m = bus[0]
                 bus[0] = None
-                if debug: print '\t',self.node_id,'taking its acked message off the bus: ' + str(m.id)
                 self.message_queue = self.message_queue[1:]
                 self.messages_sent += 1
                 latency = tick_number - m.creation_time
@@ -109,10 +113,10 @@ class CAN_Node:
                 # if we've made it to here there was a message in the bus
                 # which was not our own so we ack
                 bus[0].ack()
-                self.process_message(bus[0])
+                self.process_message(bus[0], tick_number)
 
         if self.has_message():  # If we have a message to write
-            if self.try_write_to_bus(self.message_queue[0], bus):  # Try to write it
+            if self.try_write_to_bus(self.message_queue[0], bus, tick_number):  # Try to write it
                 return   # Return if wrote message
 
     def setup_write_channel(self, num_messages, tick_number=0):
@@ -129,15 +133,15 @@ class CAN_Node:
         for i in xrange(int(math.ceil(HMAC_KEY_SIZE / (8*4)))):
             tag = signature[i * 4:(i + 1) * 4]
             data = channel_key[i * 4:(i + 1) * 4]
-            self.message_queue.append(CAN_Message(self.node_id,-1,tag,data,tick_number,other='[channel setup message]'))
-            if debug: print '\t', self.node_id, 'wrote channel setup message to BUS'
+            self.message_queue.append(CAN_Message(self.node_id,self.node_id,tag,data,tick_number,auth=True))
+            if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
 
         # Announce creation of hashchain on the network
 
         if debug: print '\t', self.node_id, 'setting up write channel with key', \
             channel_key
 
-    def process_message(self, m):
+    def process_message(self, m, tick_number):
         if m.id < MAX_NODE_ID:
             #checks if this message is a channel setup message (MSB is 0)
             # message ID is 11 bits, MSB is 0 iff number is < 1024
@@ -152,9 +156,11 @@ class CAN_Node:
                 #we recieved all the necessary data to verify
                 if rsa.verify(self.channel_setup[source_id][1], self.channel_setup[source_id][0], public_keys[source_id]):
                     self.channel_keys[source_id] = (self.channel_setup[source_id][1], None)
-                    print self.node_id,': NEW CHANNEL VERIFIED'
+                    if debug: print self.node_id,': NEW CHANNEL VERIFIED'
+                    if log: logfile.write(str(tick_number) + " NEWCHANNELCREATION VERIFIED NODE" + str(self.node_id) + "\n")
                 else:
-                    print self.node_id,': CHANNEL SPOOF DETECTED'
+                    if debug: print self.node_id,': CHANNEL SPOOF DETECTED'
+                    if log: logfile.write(str(tick_number) + " NEWCHANNELCREATION SPOOF NODE" + str(self.node_id) + "\n")
             
         else:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
@@ -188,10 +194,15 @@ nodes = [node0, node1, node2]
 
 simticks = 100
 for i in xrange(simticks):
-    print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
-    print 'node0:', len(node0.message_queue), 'node1:', len(node1.message_queue), 'node2:', len(node2.message_queue)
+    if debug: print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
+    if debug: print 'node0:', len(node0.message_queue), 'node1:', len(node1.message_queue), 'node2:', len(node2.message_queue)
     for n in nodes:
         n.process(bus, i)
+        if log: logfile.write(str(i) + " STATUS NODE" + str(n.node_id) + " " + str(len(n.message_queue)) + "\n")
+        if bus[0] != None:
+            if log: logfile.write(str(i) + " BUS_HEAD NODE" + str(bus[0].source) + " " + str(bus[0].id) + " " + str(bus[0].tag) + " " + str(bus[0].data) + "\n")
+        else:
+            if log: logfile.write(str(i) + ' BUS_HEAD NONE\n')
 
 total_messages = 0
 total_latency = 0
@@ -207,5 +218,6 @@ print 'Messages:', total_messages
 print 'Average Latency:', 1.0 * total_latency / total_messages
 print 'Public Keys:', public_keys
 
+logfile.close()
 
 			
