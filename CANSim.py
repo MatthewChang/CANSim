@@ -180,33 +180,33 @@ class CAN_Node:
 # send traffic through channels
 # refresh chain
 
-node0 = CAN_Node(0, {2000: 0.2}, public_keys)
-node1 = CAN_Node(1, {2002: 0.1}, public_keys)
-node2 = CAN_Node(2, {2004: 0.3}, public_keys)
-node0.setup_write_channel(10)
-nodes = [node0, node1, node2]
+if __name__ == "__main__":
+    node0 = CAN_Node(0, {2000: 0.2}, public_keys)
+    node1 = CAN_Node(1, {2002: 0.1}, public_keys)
+    node2 = CAN_Node(2, {2004: 0.3}, public_keys)
+    node0.setup_write_channel(10)
+    nodes = [node0, node1, node2]
 
-simticks = 100
-for i in xrange(simticks):
-    logging.warning('NOW IN LEVEL ' + str(i))
-    for n in nodes:
-        logging.info('Start of BUS: ' + str(bus[0]) + ' Length of BUS: ' + str(len(bus)))
-        print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
-        n.process(bus, i)
+    simticks = 100
+    for i in xrange(simticks):
+        logging.warning('NOW IN LEVEL ' + str(i))
+        for n in nodes:
+            logging.info('Start of BUS: ' + str(bus[0]) + ' Length of BUS: ' + str(len(bus)))
+            n.process(bus, i)
 
-total_messages = 0
-total_latency = 0
-for (i, n) in enumerate(nodes):
-    avg_latency = 0
-    if n.messages_sent != 0:
-        avg_latency = 1.0 * n.total_latency / n.messages_sent
-    print 'Node:', i, 'messages:', n.messages_sent, 'avg latency:', avg_latency
-    total_messages += n.messages_sent
-    total_latency += n.total_latency
+    total_messages = 0
+    total_latency = 0
+    for (i, n) in enumerate(nodes):
+        avg_latency = 0
+        if n.messages_sent != 0:
+            avg_latency = 1.0 * n.total_latency / n.messages_sent
+        print 'Node:', i, 'messages:', n.messages_sent, 'avg latency:', avg_latency
+        total_messages += n.messages_sent
+        total_latency += n.total_latency
 
-print 'Messages:', total_messages
-print 'Average Latency:', 1.0 * total_latency / total_messages
-print 'Public Keys:', public_keys
+    print 'Messages:', total_messages
+    print 'Average Latency:', 1.0 * total_latency / total_messages
+    print 'Public Keys:', public_keys
 
 
 
