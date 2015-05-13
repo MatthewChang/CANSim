@@ -4,13 +4,11 @@ import time
 import random
 import rsa  # 3rd party library: sudo pip install rsa
 import math
-import logging
 from hash_encryption import *
 
 #TODO:
 #   replace node names with actual names
 #   create real traffic, one malicious node
-#   change print statements to message transmits/recieves
 #   be able to turn on and off authentication
 
 bus = [None]
@@ -28,10 +26,9 @@ MAX_MESSAGE_ID_BYTE_SIZE = 11
 MAX_NODE_ID = 2**(MAX_MESSAGE_ID_BYTE_SIZE-1)
 HASH_FN = 'sha256'
 
-debug = False
+debug = True
 log = True
 
-logging.basicConfig(filename='example.log', filemode='w', level=logging.INFO)
 
 class CAN_Message:
 
@@ -73,10 +70,7 @@ class CAN_Message:
         self.ack_bit = 1
 
     def __str__(self):
-        if self.auth:
-            return  ' ID: ' +str(self.id)+' SOURCE: '+str(self.source)+' TAG '+str(self.tag)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' AUTH'
-        else:
-            return  ' ID: ' +str(self.id)+ ' SOURCE: '+str(self.source)+' TAG '+str(self.tag)+' DATA: ' +str(self.data)+ ' ACK: ' +str(self.ack_bit)+ ' DATA'
+        return  '[id:'+str(self.id)+',source:'+str(self.source)+',tag:'+str(self.tag)+',data:' +str(self.data) + ']'
 
 
 class CAN_Node:
@@ -103,8 +97,12 @@ class CAN_Node:
     def try_write_to_bus(self, message, bus, tick_number):
         if bus[0] == None or message.id < bus[0].id:
             bus[0] = message
-            if debug: print '\t', self.node_id, 'wrote to BUS:', message
-            if log: logfile.write(str(tick_number) + " MESSAGE DATA NODE" + str(self.node_id) + "\n")
+            if message.auth:
+                if debug: print self.node_id, 'wrote channel setup message to BUS', message
+                if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
+            else:
+                if debug: print self.node_id, 'wrote data or IV message to BUS', message
+                if log: logfile.write(str(tick_number) + " MESSAGE DATA NODE" + str(self.node_id) + "\n")
             return True
         return False
 
@@ -176,7 +174,7 @@ class CAN_Node:
         init_tag,init_message = self.hash_chain.get_init_tag()
 
         auth_message_queue = [] #store setup messages that we want to send
-
+        
         # breaks down key, signature into separate messages to send
         # only work if using SHA-256 and HMAC_KEY_SIZE = 512
         for i in xrange(int(math.ceil(HMAC_KEY_SIZE / (8*4)))):
@@ -190,12 +188,9 @@ class CAN_Node:
 
         self.message_queue = auth_message_queue + self.message_queue
 
-        if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
-        if debug: print '\t', self.node_id, 'setting up write channel with key', \
-            channel_key
-
     def process_message(self, m, tick_number):
         if m.id < MAX_NODE_ID:
+            if debug: print self.node_id,'recieved channel setup message from', m.source
             #checks if this message is a channel setup message (MSB is 0)
             # message ID is 11 bits, MSB is 0 iff number is < 1024
             source_id = m.id
@@ -209,12 +204,10 @@ class CAN_Node:
                 #we recieved all the necessary data to verify
                 if rsa.verify(self.channel_setup[source_id][1], self.channel_setup[source_id][0], public_keys[source_id]):
                     self.channel_keys[source_id] = [self.channel_setup[source_id][1], None, None]
-                    if debug: print self.node_id,': NEW CHANNEL VERIFIED'
-                    if log: logfile.write(str(tick_number) + " NEWCHANNELCREATION VERIFIED NODE" + str(self.node_id) + "\n")
+                    if debug: print self.node_id,'verified a channel'
                 else:
-                    if debug: print self.node_id,': CHANNEL SPOOF DETECTED'
-                    if log: logfile.write(str(tick_number) + " NEWCHANNELCREATION SPOOF NODE" + str(self.node_id) + "\n")
-
+                    if debug: print self.node_id,'recieved a fake channel'
+            
         else:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
             if m.source not in self.channel_keys: return
@@ -223,24 +216,25 @@ class CAN_Node:
                     self.channel_keys[m.source][1] = m.tag
                     self.channel_keys[m.source][2] = m.data
                     self.verified_data[m.source] = [m.data]
-                    if debug: print '\t', self.node_id, 'read a initial value message tranmission'
+                    if debug: print self.node_id, 'read a initial value message tranmission from', m.source
                 else:
                     key = self.channel_keys[m.source][0]
                     prev_tag = self.channel_keys[m.source][1]
                     prev_message = self.channel_keys[m.source][2]
                     if HashChain.authenticate(prev_tag, prev_message, m.tag, m.data, key, HASH_FN, CHANNEL_TAG_BYTE_SIZE):
-                        if debug: print self.node_id, 'verified message data %s,%s sent over channel!' % m.data,m.id
+                        print self.node_id, 'verified message from %s sent over channel!' % m.source
                         self.verified_data[m.source].append(m.data)
                         self.channel_keys[m.source] = [key, m.tag, m.data]
                     else:
-                        if debug: print self.node_id, 'found spoof message data s sent over channel!'
-
+                        if debug: print self.node_id, 'found spoof message data sent over channel from', m.source
+                        
 
     def __str__(self):
         return ''
 
 #security issues:
 #   hijacking first initial value channel message
+#   hijacking any channel setup message (DOS)
 
 # assign each node ID
 # setup public, private key for each node
@@ -309,5 +303,3 @@ for i in xrange(simticks):
 print 'Public Keys:', public_keys
 
 logfile.close()
-
-
