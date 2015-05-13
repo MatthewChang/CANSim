@@ -26,7 +26,7 @@ MAX_MESSAGE_ID_BYTE_SIZE = 11
 MAX_NODE_ID = 2**(MAX_MESSAGE_ID_BYTE_SIZE-1)
 HASH_FN = 'sha256'
 
-AUTHENTICATION_ON = False
+AUTHENTICATION_ON = True
 COMPUTE_STATS = True
 
 debug = True
@@ -321,6 +321,7 @@ def total_messages(node,timestamp=0,should_log=False):
     return node.messages_sent
 
 def system_total_message(timestamp=0,should_log=False):
+    global nodes
     total_messages = 0
     for n in nodes:
         total_messages += n.messages_sent
@@ -328,15 +329,17 @@ def system_total_message(timestamp=0,should_log=False):
     return total_messages
 
 def system_avg_latency(timestamp=0,should_log=False):
+    global nodes
     total_messages = 0
     total_latency = 0
     for n in nodes:
         total_messages += n.messages_sent
         total_latency += n.total_latency
-    avg_latency = 1.0*total_latency/total_messages
     if total_messages != 0:
+        avg_latency = 1.0*total_latency/total_messages
         if should_log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(avg_latency) + "\n")
     else:
+        avg_latency = 0
         if should_log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(0) + "\n")
     return avg_latency
 

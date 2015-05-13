@@ -1,2 +1,0 @@
-# CANSim
-CAN SIMULATION
