@@ -76,7 +76,7 @@ class HashChain:
             and determines the original tag in the chain. XORs the message
             with the tag'''
     @staticmethod
-    def __unwrap_tag(tag, message, hash_func, size_tag):
+    def unwrap_tag(tag, message, hash_func, size_tag):
         chain_tag_bytes = array.array('B', tag)
         message_bytes = array.array('B', HashChain.evaluate_hash2(message, hash_func)[0:size_tag])
         for i in xrange(size_tag):
@@ -87,9 +87,9 @@ class HashChain:
     def authenticate(prev_tag, prev_message, curr_tag, curr_message, hmac_key, hash_function_str, size_tag):
         if len(prev_tag) != size_tag or len(curr_tag) != size_tag: return False
         hash_function = getattr(hashlib, hash_function_str)
-        prev_chain_tag = HashChain.__unwrap_tag(prev_tag, prev_message, hash_function, size_tag)
-        curr_chain_tag = HashChain.__unwrap_tag(curr_tag, curr_message, hash_function, size_tag)
-        digest_maker = hmac.new(hmac_key, curr_tag, hash_function)
+        prev_chain_tag = HashChain.unwrap_tag(prev_tag, prev_message, hash_function, size_tag)
+        curr_chain_tag = HashChain.unwrap_tag(curr_tag, curr_message, hash_function, size_tag)
+        digest_maker = hmac.new(hmac_key, curr_chain_tag, hash_function)
         correct_tag = digest_maker.digest()[0:size_tag]
         return correct_tag == prev_chain_tag
 

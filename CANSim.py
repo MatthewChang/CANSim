@@ -98,7 +98,7 @@ class CAN_Node:
         if bus[0] == None or message.id < bus[0].id:
             bus[0] = message
             if message.auth:
-                if debug: print self.node_id, 'wrote channel setup message to BUS', message
+                #if debug: print self.node_id, 'wrote channel setup message to BUS', message
                 if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
             else:
                 if debug: print self.node_id, 'wrote data or IV message to BUS', message
@@ -115,9 +115,8 @@ class CAN_Node:
     def append_write_queue(self, id, data, auth, tick_number):
         if auth:
             if self.hash_chain == None or self.hash_chain.is_stale:
-                if debug: print self.node_id, 'setting up a new hash chain'
                 #need to create a new HashChain
-                self.setup_write_channel(10, tick_number)
+                self.setup_write_channel(100, tick_number)
                 assert self.hash_chain != None and not self.hash_chain.is_stale
                 tag = self.hash_chain.get_next_tag(data)
                 self.message_queue.append(CAN_Message(id, self.node_id, tag, data, tick_number, auth=False))
@@ -137,9 +136,9 @@ class CAN_Node:
             if r < p: #with certain probability send message
                 data = "GOGOGO"
                 mID = b
-                if s < 0.5: #with half probability send an unauthenticated message
+                if s > 0.0: #with full probability send an authenticated message over channel
                     self.append_write_queue(mID, data, True, tick_number)
-                else: #tries to send over channel
+                else: #random tag
                     self.append_write_queue(mID, data, False, tick_number)
 
 
@@ -166,6 +165,8 @@ class CAN_Node:
 
     def setup_write_channel(self, num_messages, tick_number=0):
 
+        if debug: print self.node_id, 'setting up a new hash chain'
+
         channel_key = gen_str_key(HMAC_KEY_SIZE)
         seed = gen_str_key(HMAC_KEY_SIZE)
         signature = rsa.sign(channel_key, self.private_key, 'SHA-256')
@@ -190,7 +191,7 @@ class CAN_Node:
 
     def process_message(self, m, tick_number):
         if m.id < MAX_NODE_ID:
-            if debug: print self.node_id,'recieved channel setup message from', m.source
+            #if debug: print self.node_id,'recieved channel setup message from', m.source
             #checks if this message is a channel setup message (MSB is 0)
             # message ID is 11 bits, MSB is 0 iff number is < 1024
             source_id = m.id
@@ -204,9 +205,9 @@ class CAN_Node:
                 #we recieved all the necessary data to verify
                 if rsa.verify(self.channel_setup[source_id][1], self.channel_setup[source_id][0], public_keys[source_id]):
                     self.channel_keys[source_id] = [self.channel_setup[source_id][1], None, None]
-                    if debug: print self.node_id,'verified a channel'
+                    if debug: print self.node_id,'verified a channel from',source_id
                 else:
-                    if debug: print self.node_id,'recieved a fake channel'
+                    if debug: print self.node_id,'recieved a fake channel',source_id
             
         else:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
@@ -253,7 +254,7 @@ class CAN_Node:
 node0 = CAN_Node(0, {2000: 0.2}, public_keys)
 node1 = CAN_Node(1, {2002: 0.1}, public_keys)
 node2 = CAN_Node(2, {2004: 0.3}, public_keys)
-node0.setup_write_channel(10)
+node0.setup_write_channel(100)
 nodes = [node0, node1, node2]
 
 def avg_latency(node,timestamp=0):
@@ -286,8 +287,6 @@ def system_avg_latency(timestamp):
 
 simticks = 100
 for i in xrange(simticks):
-    if debug: print 'Start of BUS:', bus[0], 'Length of BUS:', len(bus)
-    if debug: print 'node0:', len(node0.message_queue), 'node1:', len(node1.message_queue), 'node2:', len(node2.message_queue)
     system_avg_latency(i)
     system_total_message(i)
     for n in nodes:
