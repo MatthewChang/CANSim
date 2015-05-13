@@ -1,0 +1,233 @@
+{0: 'MOTOR', 1: 'MOTOR_CONTROLLER', 2: 'STEERING_WHEEL', 3: 'BRAKE', 4: 'DASHBOARD'}
+1 setting up a new hash chain
+2 setting up a new hash chain
+2 verified a channel from 1
+3 verified a channel from 1
+0 verified a channel from 1
+1 wrote data or IV message to BUS [id:1025,source:1,tag:‰Ş,data:INIT20]
+1 verified a channel from 2
+2 wrote data or IV message to BUS [id:1026,source:2,tag: ,data:INIT20]
+1 wrote data or IV message to BUS [id:1025,source:1,tag:‰Ş,data:INIT20]
+1 wrote data or IV message to BUS [id:2001,source:1,tag:U1,data:²’6ëX±]
+2 read a initial value message tranmission from 1
+2 wrote data or IV message to BUS [id:1026,source:2,tag: ,data:INIT20]
+2 wrote data or IV message to BUS [id:2000,source:2,tag:»,data:±Û¦jÁÈ]
+1 read a initial value message tranmission from 2
+2 wrote data or IV message to BUS [id:2000,source:2,tag:«¶,data:òEù@4‰]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:'Ş,data:{—–,ÿ]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:Ş„,data:ï%z‚]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:AN,data:çIƒÁi]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:ãL,data:¼e‚½Õ;]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:29,data:İPÿÚYÔ]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:U1,data:²’6ëX±]
+2 wrote data or IV message to BUS [id:2000,source:2,tag:š;,data:óşÁø´]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:U1,data:²’6ëX±]
+3 read a initial value message tranmission from 1
+0 read a initial value message tranmission from 1
+1 wrote data or IV message to BUS [id:2001,source:1,tag:÷x,data:[vóQRl]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:d,data:Éz¾Jb—]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:;G,data:mlƒ¶]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Ïö,data:Båş¸y]
+2 verified message from 1 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:Šd,data:[‹ı2±Ö]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Ïö,data:Båş¸y]
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Xm,data:ĞÃ]•]
+2 verified message from 1 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:N´,data:e³,È]]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Xm,data:ĞÃ]•]
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:(·,data:‰ZÒ/¼Ç]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:j,data:'ıÚí½å]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:ê ,data:ÿäüC¸]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:é|,data:UvØÍ»]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:|,data:3cÎ¥]
+2 verified message from 1 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:¿,data:¯cõMÃk]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:|,data:3cÎ¥]
+2 wrote data or IV message to BUS [id:2000,source:2,tag:&™,data:ƒÕœé]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:ª¬,data:¬iùw`]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:|,data:3cÎ¥]
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Oq,data:o€2)Z+]
+2 verified message from 1 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:5&,data:ğ¯¯Ø'Š]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:Àñ,data:wdïKO]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Oq,data:o€2)Z+]
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:á],data:ÁÙNGêU]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:PÇ,data:Êö}êŠ]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:<,data:ŒÛ%¯üÃ]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:¸G,data:åõĞÖ]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:4,data:Œ/IÃì]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag: ›,data:ÌCvúie]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:ÊŒ,data:bËéİ?]
+2 verified message from 1 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:ße,data:È-–Kej]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:ÊŒ,data:bËéİ?]
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:^,data:¤ÇÍ¶]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:iÎ,data:€gGåğt]
+2 verified message from 1 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:\,data:ö"=]
+1 verified message from 2 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:Cq,data:|TÆí²%]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:iÎ,data:€gGåğt]
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:®.,data:^71Œè]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:3¢,data:ªäXòë]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:·à,data:=è¤ÜÓ]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:qY,data:ØR½'B®]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:â,data:­˜÷]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Ö‰,data:ÇÉ§ìŠ]
+2 verified message from 1 sent over channel!
+2 wrote data or IV message to BUS [id:2000,source:2,tag:Ä!,data: ƒ_‰HX]
+1 verified message from 2 sent over channel!
+4 wrote malicious message to bus
+4 wrote data or IV message to BUS [id:2002,source:4,tag:1,data:ŠBv©3]
+1 found unauthed message data (with no saved key) from 4
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Ö‰,data:ÇÉ§ìŠ]
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:W=,data:';zG]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:.€,data:X|v2¸]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:N®,data:ºKŞÜå]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:èè,data:Àcû ]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:Ç,data:ù˜Íp.5]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:,data:!×|xŞ]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:X,data:ãëÃXl]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:GÁ,data:}iŞ~Ê]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+0 verified message from 1 sent over channel!
+1 wrote data or IV message to BUS [id:2001,source:1,tag:è®,data:œgmar]
+2 verified message from 1 sent over channel!
+3 verified message from 1 sent over channel!
+Public Keys: {0: PublicKey(10144989965509969695558446974691505858230375269016259851076095070864574516211481216139754646799091839580496139558828859590370262365753517964912640137606333, 65537), 1: PublicKey(9072684190784817182931740787207577836389300604358368645977165082702765302408775777658244765895939962482314366506642729714489602293976380534572162067548933, 65537), 2: PublicKey(10021557541830047151453209947137485547103995503364153744746418700789249493859009813806140089982702507182431644318708193460056077008992751341645933891387107, 65537), 3: PublicKey(8165177323428337407831977539352001606281578633103063566385059803527879495757165921294120091553687404576177483624508444896472436449983971099150465962003161, 65537), 4: PublicKey(9622923532079512218614089977337414489200744793553050983746272745702824270657731591755929926348120386700007293819663798488582129020236286949889898467589889, 65537)}

@@ -76,7 +76,7 @@ class CAN_Message:
 
 class CAN_Node:
 
-    def __init__(self,node_id,bp,is_malicious,public_keys):
+    def __init__(self,node_id,broadcast_props,listen_to,is_malicious,public_keys):
 
         assert node_id < MAX_NODE_ID
 
@@ -89,7 +89,8 @@ class CAN_Node:
         self.total_latency = 0
         self.node_id = node_id
         self.is_malicious = is_malicious
-        self.broadcast_properties = bp
+        self.broadcast_properties = broadcast_props
+        self.listen_to = listen_to
         self.hash_chain = None
 
         (pub_key, priv_key) = rsa.newkeys(RSA_KEY_SIZE)
@@ -100,6 +101,7 @@ class CAN_Node:
     def try_write_to_bus(self, message, bus, tick_number):
         if bus[0] == None or message.id < bus[0].id:
             bus[0] = message
+            if message.tag == "1" and debug: print self.node_id, 'wrote malicious message to bus'
             if message.auth:
                 #if debug: print self.node_id, 'wrote channel setup message to BUS', message
                 if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
@@ -139,7 +141,7 @@ class CAN_Node:
         rand_float = random.uniform(0, 1)
         for (mID, prob) in self.broadcast_properties.items():
             if rand_float < prob: #with certain probability send message
-                data = "GOGOGO"
+                data = gen_str_key(6*8) #randomize data sent
                 if AUTHENTICATION_ON and not self.is_malicious: 
                     self.append_write_queue(mID, data, True, tick_number)
                 else: #random tag
@@ -195,6 +197,7 @@ class CAN_Node:
         self.message_queue = auth_message_queue + self.message_queue
 
     def process_message(self, m, tick_number):
+        if m.id not in self.listen_to: return
         if m.id < MAX_NODE_ID:
             #if debug: print self.node_id,'recieved channel setup message from', m.source
             #checks if this message is a channel setup message (MSB is 0)
@@ -226,7 +229,9 @@ class CAN_Node:
             
         else:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
-            if m.source not in self.channel_keys: return
+            if m.source not in self.channel_keys:
+                if debug: print self.node_id, 'found unauthed message data (with no saved key) from', m.source
+                return
             else:
                 if self.channel_keys[m.source][1] == None: #this must be the initial value message of the chain
                     self.channel_keys[m.source][1] = m.tag
@@ -256,6 +261,9 @@ class CAN_Node:
 #   hijacking first initial value channel message
 #   hijacking any channel setup message (DOS)
 
+#logisitic issues
+#malicious message DOS is really dependent on priority
+
 # assign each node ID
 # setup public, private key for each node
 # setup HMAC chain channels
@@ -270,14 +278,28 @@ class CAN_Node:
 # send traffic through channels
 # refresh chain
 
-DASHBOARD = CAN_Node(0, {2000: 0.2}, False, public_keys)
-MOTOR_CONTROLLER = CAN_Node(1, {2002: 0.1}, False, public_keys)
-MOTOR = CAN_Node(2, {2004: 0.3}, False, public_keys)
-BRAKE = CAN_Node(3, {2004: 0.3}, False, public_keys)
-STEERING_WHEEL = CAN_Node(4, {2004: 0.3}, True, public_keys)
+#You can choose to listen
+node_id_map_str = {4: 'DASHBOARD', 1:'MOTOR_CONTROLLER', 0:'MOTOR', 3:'BRAKE', 2:'STEERING_WHEEL'}
+print node_id_map_str
+
+#WHAT CHANNELS THAT EACH THING BROADCASTS TO
+mIDs = {
+    'MOTOR_DATA':2000,
+    'MOTOR_SETUP':0,
+    'MOTOR_CONT_DATA':2001,
+    'MOTOR_CONT_SETUP':1,
+    'STEERING_DATA':2002,
+    'STEERING_SETUP':2
+}
+
+DASHBOARD = CAN_Node(0, {}, [mIDs['MOTOR_CONT_DATA'], mIDs['MOTOR_CONT_SETUP']], False, public_keys)
+MOTOR_CONTROLLER = CAN_Node(1, {mIDs['MOTOR_CONT_DATA']: 0.8}, [mIDs['MOTOR_DATA'], mIDs['MOTOR_SETUP'],mIDs['STEERING_DATA'],mIDs['STEERING_SETUP']], False, public_keys)
+MOTOR = CAN_Node(2, {mIDs['MOTOR_DATA']: 0.2},[mIDs['MOTOR_CONT_DATA'],mIDs['MOTOR_CONT_SETUP']], False, public_keys)
+BRAKE = CAN_Node(3, {}, [mIDs['MOTOR_CONT_DATA'],mIDs['MOTOR_CONT_SETUP']], False, public_keys)
+STEERING_WHEEL = CAN_Node(4, {mIDs['STEERING_DATA']: 0.7}, [], True, public_keys)
+
 node_id_map = {0: DASHBOARD, 1:MOTOR_CONTROLLER, 2:MOTOR, 3:BRAKE, 4:STEERING_WHEEL}
-node_id_map_str = {0: 'DASHBOARD', 1:'MOTOR_CONTROLLER', 2:'MOTOR', 3:'BRAKE', 4:'STEERING_WHEEL'}
-nodes = [DASHBOARD, MOTOR_CONTROLLER, MOTOR]
+nodes = [DASHBOARD, MOTOR_CONTROLLER, MOTOR, BRAKE, STEERING_WHEEL]
 #DASHBOARD.setup_write_channel(100)
 
 def avg_latency(node,timestamp=0):
