@@ -7,9 +7,9 @@ String node0QSize = "0";
 String node1QSize = "0";
 String node2QSize = "0";
 
-String node0Name = "Motor Controller";
+String node0Name = "Brake";
 String node1Name = "Steering Wheel";
-String node2Name = "Brake";
+String node2Name = "Motor Controller";
 
 MessageType messageType;
 
@@ -18,7 +18,7 @@ int BUS_X_END = 600;
 int BUS_X_MID = (BUS_X_START + BUS_X_END)/2;
 int BUS_Y = 400;
 int CONNECTOR_LENGTH = 50;
-int WIDTH = 700;
+int WIDTH = 750;
 int HEIGHT = 700;
 int NODE_SIDE_LENGTH = 50;
 int AVG_LAT_Y = 100;
