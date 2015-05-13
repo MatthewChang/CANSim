@@ -32,6 +32,9 @@ COMPUTE_STATS = True
 debug = True
 log = True
 
+#REMEMBER THIS IS HARDCODED BELOW TOO
+node_id_map_str = {4: 'DASHBOARD', 1:'MOTOR_CONTROLLER', 0:'MOTOR', 3:'BRAKE', 2:'STEERING_WHEEL'}
+print node_id_map_str
 
 class CAN_Message:
 
@@ -105,11 +108,9 @@ class CAN_Node:
             bus[0] = message
             if message.tag == "1" and debug: print self.node_id, 'wrote unauthed/malicious message to bus'
             if message.auth:
-                #if debug: print self.node_id, 'wrote channel setup message to BUS', message
-                if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
+                if debug: print self.node_id, 'wrote channel setup message to BUS', message
             else:
                 if debug: print self.node_id, 'wrote data or IV message to BUS', message
-                if log: logfile.write(str(tick_number) + " MESSAGE DATA NODE" + str(self.node_id) + "\n")
             return True
         return False
 
@@ -191,7 +192,6 @@ class CAN_Node:
             tag = signature[i * 4:(i + 1) * 4]
             data = channel_key[i * 4:(i + 1) * 4]
             auth_message_queue.append(CAN_Message(self.node_id,self.node_id,tag,data,tick_number,auth=True))
-            if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
 
         #send out initial value
         auth_message_queue.append(CAN_Message(1024+self.node_id,self.node_id,init_tag,init_message,tick_number,auth=False))
@@ -227,8 +227,10 @@ class CAN_Node:
                         rsa.verify(data, signature, public_keys[source_id])
                         self.channel_keys[source_id] = [self.channel_setup[source_id][1], None, None]
                         if debug: print self.node_id,'verified a channel from',source_id
+                        if log: logfile.write(str(tick_number) + " NEWCHANNEL VERIFIED " + node_id_map_str[self.node_id] + "\n")
                     except:
                         if debug: print self.node_id,'recieved a fake channel',source_id
+                        if log: logfile.write(str(tick_number) + " NEWCHANNEL SPOOF " + node_id_map_str[self.node_id] + "\n")
             else:
                 if debug: print self.node_id, 'found unauthed message data from', m.source
                 self.recieved_data[m.source].append(m.data)
@@ -237,6 +239,7 @@ class CAN_Node:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
             if m.source not in self.channel_keys:
                 if debug: print self.node_id, 'found unauthed message data from', m.source
+                if log: logfile.write(str(tick_number) + " RECIEVED " + node_id_map_str[self.node_id] + " " + node_id_map_str[m.source] + " UNAUTH")
                 if not AUTHENTICATION_ON: self.recieved_data[m.source].append(m.data)
                 return
             else:
@@ -244,6 +247,7 @@ class CAN_Node:
                     self.channel_keys[m.source][1] = m.tag
                     self.channel_keys[m.source][2] = m.data
                     self.recieved_data[m.source] = [m.data]
+                    if log: logfile.write(str(tick_number) + " RECIEVED " + node_id_map_str[self.node_id] + " " + node_id_map_str[m.source] + " AUTH")
                     if debug: print self.node_id, 'read a initial value message tranmission from', m.source
                 else:
                     key = self.channel_keys[m.source][0]
@@ -254,10 +258,12 @@ class CAN_Node:
                     # because of some weird ack reason. checking explicitly for them, and dumping them
                     if not (m.tag == prev_tag and m.data == prev_message):
                         if HashChain.authenticate(prev_tag, prev_message, m.tag, m.data, key, HASH_FN, CHANNEL_TAG_BYTE_SIZE):
+                            if log: logfile.write(str(tick_number) + " RECIEVED " + node_id_map_str[self.node_id] + " " + node_id_map_str[m.source] + " AUTH")
                             if debug: print self.node_id, 'verified message from %s sent over channel!' % m.source
                             self.recieved_data[m.source].append(m.data)
                             self.channel_keys[m.source] = [key, m.tag, m.data]
                         else:
+                            if log: logfile.write(str(tick_number) + " RECIEVED " + node_id_map_str[self.node_id] + " " + node_id_map_str[m.source] + " UNAUTH")
                             if debug: print self.node_id, 'found spoof message data sent over channel from', m.source
                         
 
@@ -286,8 +292,6 @@ class CAN_Node:
 # refresh chain
 
 #You can choose to listen
-node_id_map_str = {4: 'DASHBOARD', 1:'MOTOR_CONTROLLER', 0:'MOTOR', 3:'BRAKE', 2:'STEERING_WHEEL'}
-print node_id_map_str
 
 #WHAT CHANNELS THAT EACH THING BROADCASTS TO
 mIDs = {
@@ -313,14 +317,15 @@ def avg_latency(node,timestamp=0,should_log=False):
     avg_latency = 0
     if node.messages_sent != 0:
         avg_latency = 1.0 * node.total_latency / node.messages_sent
-    if should_log: logfile.write(str(timestamp) + " AVGLATENCY NODE" + str(node.node_id) + " " + str(avg_latency) + "\n")
+    if should_log: logfile.write(str(timestamp) + " AVGLATENCY " + node_id_map_str[node.node_id] + " " + str(avg_latency) + "\n")
     return avg_latency
 
 def total_messages(node,timestamp=0,should_log=False):
-    if should_log: logfile.write(str(timestamp) + " TOTALM NODE" + str(node.node_id) + " " + str(node.messages_sent) + "\n")
+    if should_log: logfile.write(str(timestamp) + " TOTALM " + node_id_map_str[node.node_id] + " " + str(node.messages_sent) + "\n")
     return node.messages_sent
 
 def system_total_message(timestamp=0,should_log=False):
+    global nodes
     total_messages = 0
     for n in nodes:
         total_messages += n.messages_sent
@@ -328,34 +333,36 @@ def system_total_message(timestamp=0,should_log=False):
     return total_messages
 
 def system_avg_latency(timestamp=0,should_log=False):
+    global nodes
     total_messages = 0
     total_latency = 0
     for n in nodes:
         total_messages += n.messages_sent
         total_latency += n.total_latency
-    avg_latency = 1.0*total_latency/total_messages
     if total_messages != 0:
+        avg_latency = 1.0*total_latency/total_messages
         if should_log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(avg_latency) + "\n")
     else:
+        avg_latency = 0
         if should_log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(0) + "\n")
     return avg_latency
 
-simticks = 100
+simticks = 200
 for i in xrange(simticks):
     system_avg_latency(i,log)
     system_total_message(i,log)
     for n in nodes:
         n.process(bus, i)
-        if log: logfile.write(str(i) + " STATUS NODE" + str(n.node_id) + " " + str(len(n.message_queue)) + "\n")
+        if log: logfile.write(str(i) + " STATUS " + node_id_map_str[n.node_id] + " " + str(len(n.message_queue)) + "\n")
         if bus[0] != None:
-            if log: logfile.write(str(i) + " BUS_HEAD NODE" + str(bus[0].source) + " " + str(bus[0].id) + " " + str(bus[0].tag) + " " + str(bus[0].data) + "\n")
+            if log: logfile.write(str(i) + " BUS " + ('AUTH' if bus[0].auth else 'DATA') + " " + node_id_map_str[bus[0].source] + " " + str(bus[0].id) + " " + str(bus[0].tag) + " " + str(bus[0].data) + "\n")
         else:
             if log: logfile.write(str(i) + ' BUS_HEAD NONE\n')
         avg_latency(n, i,log)
         total_messages(n, i,log)
 
 print '...'
-print 'Number of Simulation Rounds: 100'
+print 'Number of Simulation Rounds:',simticks
 for n in nodes:
     print 'Node:', node_id_map_str[n.node_id]
     print '\t','Length of Message Queu:', len(n.message_queue)
