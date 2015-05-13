@@ -26,6 +26,7 @@ MAX_MESSAGE_ID_BYTE_SIZE = 11
 MAX_NODE_ID = 2**(MAX_MESSAGE_ID_BYTE_SIZE-1)
 HASH_FN = 'sha256'
 
+AUTHENTICATION_ON = True
 debug = True
 log = True
 
@@ -75,7 +76,7 @@ class CAN_Message:
 
 class CAN_Node:
 
-    def __init__(self,node_id,bp,public_keys):
+    def __init__(self,node_id,bp,is_malicious,public_keys):
 
         assert node_id < MAX_NODE_ID
 
@@ -87,12 +88,14 @@ class CAN_Node:
         self.messages_sent = 0
         self.total_latency = 0
         self.node_id = node_id
+        self.is_malicious = is_malicious
         self.broadcast_properties = bp
         self.hash_chain = None
 
         (pub_key, priv_key) = rsa.newkeys(RSA_KEY_SIZE)
         public_keys[node_id] = pub_key
         self.private_key = priv_key
+
 
     def try_write_to_bus(self, message, bus, tick_number):
         if bus[0] == None or message.id < bus[0].id:
@@ -106,6 +109,7 @@ class CAN_Node:
             return True
         return False
 
+
     def has_message(self):
         return len(self.message_queue) > 0
 
@@ -113,6 +117,7 @@ class CAN_Node:
         set auth to True if want to send an authenticated message
         sets up hash_chain if necessary'''
     def append_write_queue(self, id, data, auth, tick_number):
+        if not AUTHENTICATION_ON: assert not auth
         if auth:
             if self.hash_chain == None or self.hash_chain.is_stale:
                 #need to create a new HashChain
@@ -131,12 +136,11 @@ class CAN_Node:
 
 
     def process(self, bus, tick_number):
-        r,s = random.uniform(0, 1), random.uniform(0,1)
-        for (b, p) in self.broadcast_properties.items():
-            if r < p: #with certain probability send message
+        rand_float = random.uniform(0, 1)
+        for (mID, prob) in self.broadcast_properties.items():
+            if rand_float < prob: #with certain probability send message
                 data = "GOGOGO"
-                mID = b
-                if s > 0.0: #with full probability send an authenticated message over channel
+                if AUTHENTICATION_ON and not self.is_malicious: 
                     self.append_write_queue(mID, data, True, tick_number)
                 else: #random tag
                     self.append_write_queue(mID, data, False, tick_number)
@@ -162,6 +166,7 @@ class CAN_Node:
         if self.has_message():  # If we have a message to write
             if self.try_write_to_bus(self.message_queue[0], bus, tick_number):  # Try to write it
                 return   # Return if wrote message
+
 
     def setup_write_channel(self, num_messages, tick_number=0):
 
@@ -196,17 +201,27 @@ class CAN_Node:
             # message ID is 11 bits, MSB is 0 iff number is < 1024
             source_id = m.id
             if source_id in self.channel_setup:
-                self.channel_setup[source_id][0] += m.tag
-                self.channel_setup[source_id][1] += m.data
+                #hack to circumvent Python bus scheduling issue
+                #unsure why, but occasionally messages are sent out twice (ack/message queue issue?)
+                #probability of hack failure: 1/(256*256)
+                #discounts repeat messages
+                if m.data != self.channel_setup[source_id][1][-len(m.data):]:
+                    self.channel_setup[source_id][0] += m.tag
+                    self.channel_setup[source_id][1] += m.data
+                else:
+                    if debug: print self.node_id, 'noticed repeat message from', source_id
             else:
                 self.channel_setup[source_id] = [m.tag, m.data]
 
             if len(self.channel_setup[source_id][1]) == HMAC_KEY_SIZE/8:
                 #we recieved all the necessary data to verify
-                if rsa.verify(self.channel_setup[source_id][1], self.channel_setup[source_id][0], public_keys[source_id]):
+                try:
+                    data = self.channel_setup[source_id][1]
+                    signature = self.channel_setup[source_id][0]
+                    rsa.verify(data, signature, public_keys[source_id])
                     self.channel_keys[source_id] = [self.channel_setup[source_id][1], None, None]
                     if debug: print self.node_id,'verified a channel from',source_id
-                else:
+                except:
                     if debug: print self.node_id,'recieved a fake channel',source_id
             
         else:
@@ -222,12 +237,16 @@ class CAN_Node:
                     key = self.channel_keys[m.source][0]
                     prev_tag = self.channel_keys[m.source][1]
                     prev_message = self.channel_keys[m.source][2]
-                    if HashChain.authenticate(prev_tag, prev_message, m.tag, m.data, key, HASH_FN, CHANNEL_TAG_BYTE_SIZE):
-                        print self.node_id, 'verified message from %s sent over channel!' % m.source
-                        self.verified_data[m.source].append(m.data)
-                        self.channel_keys[m.source] = [key, m.tag, m.data]
-                    else:
-                        if debug: print self.node_id, 'found spoof message data sent over channel from', m.source
+                    #another hack for same reason:
+                    #for some reason, repeat messages seem to be going through on the bus
+                    # because of some weird ack reason. checking explicitly for them, and dumping them
+                    if not (m.tag == prev_tag and m.data == prev_message):
+                        if HashChain.authenticate(prev_tag, prev_message, m.tag, m.data, key, HASH_FN, CHANNEL_TAG_BYTE_SIZE):
+                            if debug: print self.node_id, 'verified message from %s sent over channel!' % m.source
+                            self.verified_data[m.source].append(m.data)
+                            self.channel_keys[m.source] = [key, m.tag, m.data]
+                        else:
+                            if debug: print self.node_id, 'found spoof message data sent over channel from', m.source
                         
 
     def __str__(self):
@@ -251,11 +270,15 @@ class CAN_Node:
 # send traffic through channels
 # refresh chain
 
-node0 = CAN_Node(0, {2000: 0.2}, public_keys)
-node1 = CAN_Node(1, {2002: 0.1}, public_keys)
-node2 = CAN_Node(2, {2004: 0.3}, public_keys)
-node0.setup_write_channel(100)
-nodes = [node0, node1, node2]
+DASHBOARD = CAN_Node(0, {2000: 0.2}, False, public_keys)
+MOTOR_CONTROLLER = CAN_Node(1, {2002: 0.1}, False, public_keys)
+MOTOR = CAN_Node(2, {2004: 0.3}, False, public_keys)
+BRAKE = CAN_Node(3, {2004: 0.3}, False, public_keys)
+STEERING_WHEEL = CAN_Node(4, {2004: 0.3}, True, public_keys)
+node_id_map = {0: DASHBOARD, 1:MOTOR_CONTROLLER, 2:MOTOR, 3:BRAKE, 4:STEERING_WHEEL}
+node_id_map_str = {0: 'DASHBOARD', 1:'MOTOR_CONTROLLER', 2:'MOTOR', 3:'BRAKE', 4:'STEERING_WHEEL'}
+nodes = [DASHBOARD, MOTOR_CONTROLLER, MOTOR]
+#DASHBOARD.setup_write_channel(100)
 
 def avg_latency(node,timestamp=0):
     avg_latency = 0
