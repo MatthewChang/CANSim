@@ -27,6 +27,8 @@ MAX_NODE_ID = 2**(MAX_MESSAGE_ID_BYTE_SIZE-1)
 HASH_FN = 'sha256'
 
 AUTHENTICATION_ON = False
+COMPUTE_STATS = True
+
 debug = True
 log = True
 
@@ -297,48 +299,48 @@ mIDs = {
     'STEERING_SETUP':2
 }
 
-DASHBOARD = CAN_Node(0, {}, [mIDs['MOTOR_CONT_DATA'], mIDs['MOTOR_CONT_SETUP']], False, public_keys)
+DASHBOARD = CAN_Node(4, {}, [mIDs['MOTOR_CONT_DATA'], mIDs['MOTOR_CONT_SETUP']], False, public_keys)
 MOTOR_CONTROLLER = CAN_Node(1, {mIDs['MOTOR_CONT_DATA']: 0.8}, [mIDs['MOTOR_DATA'], mIDs['MOTOR_SETUP'],mIDs['STEERING_DATA'],mIDs['STEERING_SETUP']], False, public_keys)
-MOTOR = CAN_Node(2, {mIDs['MOTOR_DATA']: 0.2},[mIDs['MOTOR_CONT_DATA'],mIDs['MOTOR_CONT_SETUP']], False, public_keys)
+MOTOR = CAN_Node(0, {mIDs['MOTOR_DATA']: 0.2},[mIDs['MOTOR_CONT_DATA'],mIDs['MOTOR_CONT_SETUP']], False, public_keys)
 BRAKE = CAN_Node(3, {}, [mIDs['MOTOR_CONT_DATA'],mIDs['MOTOR_CONT_SETUP']], False, public_keys)
-STEERING_WHEEL = CAN_Node(4, {mIDs['STEERING_DATA']: 0.7}, [], True, public_keys)
+STEERING_WHEEL = CAN_Node(2, {mIDs['STEERING_DATA']: 0.7}, [], True, public_keys)
 
 node_id_map = {0: DASHBOARD, 1:MOTOR_CONTROLLER, 2:MOTOR, 3:BRAKE, 4:STEERING_WHEEL}
 nodes = [DASHBOARD, MOTOR_CONTROLLER, MOTOR, BRAKE, STEERING_WHEEL]
 #DASHBOARD.setup_write_channel(100)
 
-def avg_latency(node,timestamp=0):
+def avg_latency(node,timestamp=0,should_log=False):
     avg_latency = 0
     if node.messages_sent != 0:
         avg_latency = 1.0 * node.total_latency / node.messages_sent
-    if log: logfile.write(str(timestamp) + " AVGLATENCY NODE" + str(node.node_id) + " " + str(avg_latency) + "\n")
+    if should_log: logfile.write(str(timestamp) + " AVGLATENCY NODE" + str(node.node_id) + " " + str(avg_latency) + "\n")
     return avg_latency
 
-def total_messages(node,timestamp=0):
-    if log: logfile.write(str(timestamp) + " TOTALM NODE" + str(node.node_id) + " " + str(node.messages_sent) + "\n")
+def total_messages(node,timestamp=0,should_log=False):
+    if should_log: logfile.write(str(timestamp) + " TOTALM NODE" + str(node.node_id) + " " + str(node.messages_sent) + "\n")
     return node.messages_sent
 
-def system_total_message(timestamp):
+def system_total_message(timestamp=0,should_log=False):
     total_messages = 0
     for n in nodes:
         total_messages += n.messages_sent
-    if log: logfile.write(str(timestamp) + " STOTALM " + str(total_messages) + "\n")
+    if should_log: logfile.write(str(timestamp) + " STOTALM " + str(total_messages) + "\n")
 
-def system_avg_latency(timestamp):
+def system_avg_latency(timestamp=0,should_log=False):
     total_messages = 0
     total_latency = 0
     for n in nodes:
         total_messages += n.messages_sent
         total_latency += n.total_latency
     if total_messages != 0:
-        if log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(1.0*total_latency/total_messages) + "\n")
+        if should_log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(1.0*total_latency/total_messages) + "\n")
     else:
-        if log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(0) + "\n")
+        if should_log: logfile.write(str(timestamp) + " SAVGLATENCY " + str(0) + "\n")
 
 simticks = 100
 for i in xrange(simticks):
-    system_avg_latency(i)
-    system_total_message(i)
+    system_avg_latency(i,log)
+    system_total_message(i,log)
     for n in nodes:
         n.process(bus, i)
         if log: logfile.write(str(i) + " STATUS NODE" + str(n.node_id) + " " + str(len(n.message_queue)) + "\n")
@@ -346,9 +348,20 @@ for i in xrange(simticks):
             if log: logfile.write(str(i) + " BUS_HEAD NODE" + str(bus[0].source) + " " + str(bus[0].id) + " " + str(bus[0].tag) + " " + str(bus[0].data) + "\n")
         else:
             if log: logfile.write(str(i) + ' BUS_HEAD NONE\n')
-        avg_latency(n, i)
-        total_messages(n, i)
+        avg_latency(n, i,log)
+        total_messages(n, i,log)
 
+print '...'
+print 'Number of Simulation Rounds: 100'
+for n in nodes:
+    print 'Node:', node_id_map_str[n.node_id]
+    print '\t','Length of Message Queu:', len(n.message_queue)
+    print '\t','Total Message Sent:', n.messages_sent
+    print '\t','Average Message Latency:', avg_latency(n)
+
+print 'System Average Latency:', system_avg_latency()
+print 'System Total Messages Sent:', system_total_message()
+print 
 print 'Public Keys:', public_keys
 
 logfile.close()
