@@ -12,19 +12,29 @@ MessageType messageType;
 int BUS_X_START = 100;
 int BUS_X_END = 600;
 int BUS_X_MID = (BUS_X_START + BUS_X_END)/2;
-int BUS_Y = 300;
+int BUS_Y = 400;
 int CONNECTOR_LENGTH = 50;
 int WIDTH = 700;
-  int HEIGHT = 700;
-  int NODE_SIDE_LENGTH = 50;
-  int AVG_LAT_Y = 100;
-  int TOTAL_M_Y = 50; 
-  String average_latency = "0";
-  String total_messages = "0";
-  color RED = color(255, 0, 0);
-  color BLUE = color(0, 0, 255);
-  color BLACK = color(0, 0, 0);
-  color WHITE = color(255, 255, 255);
+int HEIGHT = 700;
+int NODE_SIDE_LENGTH = 50;
+int AVG_LAT_Y = 100;
+int TOTAL_M_Y = 50; 
+String average_latency = "0";
+String total_messages = "0";
+color RED = color(255, 0, 0);
+color BLUE = color(0, 0, 255);
+color BLACK = color(0, 0, 0);
+color WHITE = color(255, 255, 255);
+color GREEN = color(0, 255, 0);
+
+String node0Lat = "0";
+String node0Tot = "0";
+
+String node1Lat = "0";
+String node1Tot = "0";
+
+String node2Lat = "0";
+String node2Tot = "0";
 
 void setup() {
   size(WIDTH, HEIGHT);
@@ -32,7 +42,7 @@ void setup() {
   frameRate(60);
   
   bus = new Bus(BUS_X_START, BUS_X_END, BUS_Y, CONNECTOR_LENGTH);
-  reader = createReader("cansim.log");
+  reader = createReader("../../../cansim.log");
   
 }
 
@@ -40,7 +50,9 @@ void draw() {
   background(0, 0, 0);
   bus.display();
   drawNodes(bus);
+  drawNodeNames(bus);
   updateQueueSizes(bus);
+  updateNodeInfo(bus);
   textAlign(RIGHT);
   fill(WHITE);
   text("Average Latency: " + average_latency, WIDTH, AVG_LAT_Y);
@@ -94,8 +106,22 @@ void parseLine(String line) {
       average_latency = tokens[2];
       break;
     case AVGLATENCY:
+    if (tokens[2].equals("NODE0")) {
+        node0Lat = tokens[3];
+      } else if (tokens[2].equals("NODE1")) {
+        node1Lat = tokens[3];
+      } else {
+        node2Lat = tokens[3];
+      }
       break;
     case TOTALM:
+    if (tokens[2].equals("NODE0")) {
+        node0Tot = tokens[3];
+      } else if (tokens[2].equals("NODE1")) {
+        node1Tot = tokens[3];
+      } else {
+        node2Tot = tokens[3];
+      }
       break;
     case STOTALM:
       total_messages = tokens[2];
@@ -113,8 +139,31 @@ void drawNodes(Bus bus) {
     rect(bus.X_MID, bus.Y + bus.CONN_LEN + NODE_SIDE_LENGTH/2, NODE_SIDE_LENGTH, NODE_SIDE_LENGTH); 
 }
 
+void drawNodeNames(Bus bus) {
+  int OFFSET = 30;
+  textAlign(CENTER, CENTER);
+  textSize(26);
+  fill(GREEN);
+  text("Node 0", bus.X_START, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - OFFSET);
+  text("Node 1", bus.X_MID, bus.Y + bus.CONN_LEN + NODE_SIDE_LENGTH + OFFSET);
+  text("Node 2", bus.X_END, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - OFFSET);
+}
+
+void updateNodeInfo(Bus bus) {
+  int OFFSET = 30;
+  textAlign(CENTER, CENTER);
+  textSize(18);
+  fill(GREEN);
+  text("Total # Messages: " + node0Tot, bus.X_START, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - 2*OFFSET);
+  text("Total # Messages: " + node1Tot, bus.X_MID, bus.Y + bus.CONN_LEN + NODE_SIDE_LENGTH + 2*OFFSET);
+  text("Total # Messages: " + node2Tot, bus.X_END, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - 2*OFFSET);
+  
+  text("Avg Latency: " + node0Lat, bus.X_START, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - 3*OFFSET);
+  text("Avg Latency: " + node1Lat, bus.X_MID, bus.Y + bus.CONN_LEN + NODE_SIDE_LENGTH + 3*OFFSET);
+  text("Avg Latency: " + node2Lat, bus.X_END, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - 3*OFFSET);
+}
+
 void updateQueueSizes(Bus bus) {
-  int delta = 10;
   textAlign(CENTER, CENTER);
   textSize(32);
   fill(BLACK);
