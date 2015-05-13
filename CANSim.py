@@ -4,11 +4,11 @@ import time
 import random
 import rsa  # 3rd party library: sudo pip install rsa
 import math
+from collections import defaultdict
 from hash_encryption import *
 
 #TODO:
-#   replace node names with actual names
-#   create real traffic, one malicious node
+#   update LOG with actual ops, actual node names,
 #   be able to turn on and off authentication
 
 bus = [None]
@@ -26,7 +26,7 @@ MAX_MESSAGE_ID_BYTE_SIZE = 11
 MAX_NODE_ID = 2**(MAX_MESSAGE_ID_BYTE_SIZE-1)
 HASH_FN = 'sha256'
 
-AUTHENTICATION_ON = True
+AUTHENTICATION_ON = False
 debug = True
 log = True
 
@@ -83,7 +83,7 @@ class CAN_Node:
         self.message_queue = []
         self.channel_keys = {} #source ID:[hmac_key, most recent_tag, most_recent_message]
         self.channel_setup = {} #source ID:[growing signature, growing hmac key]
-        self.verified_data = {} #source ID:[data1, data2,...],
+        self.recieved_data = defaultdict(list) #source ID:[data1, data2,...],
         self.message_queue = []
         self.messages_sent = 0
         self.total_latency = 0
@@ -101,7 +101,7 @@ class CAN_Node:
     def try_write_to_bus(self, message, bus, tick_number):
         if bus[0] == None or message.id < bus[0].id:
             bus[0] = message
-            if message.tag == "1" and debug: print self.node_id, 'wrote malicious message to bus'
+            if message.tag == "1" and debug: print self.node_id, 'wrote unauthed/malicious message to bus'
             if message.auth:
                 #if debug: print self.node_id, 'wrote channel setup message to BUS', message
                 if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
@@ -199,44 +199,49 @@ class CAN_Node:
     def process_message(self, m, tick_number):
         if m.id not in self.listen_to: return
         if m.id < MAX_NODE_ID:
-            #if debug: print self.node_id,'recieved channel setup message from', m.source
-            #checks if this message is a channel setup message (MSB is 0)
-            # message ID is 11 bits, MSB is 0 iff number is < 1024
-            source_id = m.id
-            if source_id in self.channel_setup:
-                #hack to circumvent Python bus scheduling issue
-                #unsure why, but occasionally messages are sent out twice (ack/message queue issue?)
-                #probability of hack failure: 1/(256*256)
-                #discounts repeat messages
-                if m.data != self.channel_setup[source_id][1][-len(m.data):]:
-                    self.channel_setup[source_id][0] += m.tag
-                    self.channel_setup[source_id][1] += m.data
+            if AUTHENTICATION_ON:
+                #if debug: print self.node_id,'recieved channel setup message from', m.source
+                #checks if this message is a channel setup message (MSB is 0)
+                # message ID is 11 bits, MSB is 0 iff number is < 1024
+                source_id = m.id
+                if source_id in self.channel_setup:
+                    #hack to circumvent Python bus scheduling issue
+                    #unsure why, but occasionally messages are sent out twice (ack/message queue issue?)
+                    #probability of hack failure: 1/(256*256)
+                    #discounts repeat messages
+                    if m.data != self.channel_setup[source_id][1][-len(m.data):]:
+                        self.channel_setup[source_id][0] += m.tag
+                        self.channel_setup[source_id][1] += m.data
+                    else:
+                        if debug: print self.node_id, 'noticed repeat message from', source_id
                 else:
-                    if debug: print self.node_id, 'noticed repeat message from', source_id
-            else:
-                self.channel_setup[source_id] = [m.tag, m.data]
+                    self.channel_setup[source_id] = [m.tag, m.data]
 
-            if len(self.channel_setup[source_id][1]) == HMAC_KEY_SIZE/8:
-                #we recieved all the necessary data to verify
-                try:
-                    data = self.channel_setup[source_id][1]
-                    signature = self.channel_setup[source_id][0]
-                    rsa.verify(data, signature, public_keys[source_id])
-                    self.channel_keys[source_id] = [self.channel_setup[source_id][1], None, None]
-                    if debug: print self.node_id,'verified a channel from',source_id
-                except:
-                    if debug: print self.node_id,'recieved a fake channel',source_id
+                if len(self.channel_setup[source_id][1]) == HMAC_KEY_SIZE/8:
+                    #we recieved all the necessary data to verify
+                    try:
+                        data = self.channel_setup[source_id][1]
+                        signature = self.channel_setup[source_id][0]
+                        rsa.verify(data, signature, public_keys[source_id])
+                        self.channel_keys[source_id] = [self.channel_setup[source_id][1], None, None]
+                        if debug: print self.node_id,'verified a channel from',source_id
+                    except:
+                        if debug: print self.node_id,'recieved a fake channel',source_id
+            else:
+                if debug: print self.node_id, 'found unauthed message data from', m.source
+                self.recieved_data[m.source].append(m.data)
             
         else:
             # DATA MESSAGE FORMAT [id = 1..., tag = 2 bytes, data
             if m.source not in self.channel_keys:
-                if debug: print self.node_id, 'found unauthed message data (with no saved key) from', m.source
+                if debug: print self.node_id, 'found unauthed message data from', m.source
+                if not AUTHENTICATION_ON: self.recieved_data[m.source].append(m.data)
                 return
             else:
                 if self.channel_keys[m.source][1] == None: #this must be the initial value message of the chain
                     self.channel_keys[m.source][1] = m.tag
                     self.channel_keys[m.source][2] = m.data
-                    self.verified_data[m.source] = [m.data]
+                    self.recieved_data[m.source] = [m.data]
                     if debug: print self.node_id, 'read a initial value message tranmission from', m.source
                 else:
                     key = self.channel_keys[m.source][0]
@@ -248,7 +253,7 @@ class CAN_Node:
                     if not (m.tag == prev_tag and m.data == prev_message):
                         if HashChain.authenticate(prev_tag, prev_message, m.tag, m.data, key, HASH_FN, CHANNEL_TAG_BYTE_SIZE):
                             if debug: print self.node_id, 'verified message from %s sent over channel!' % m.source
-                            self.verified_data[m.source].append(m.data)
+                            self.recieved_data[m.source].append(m.data)
                             self.channel_keys[m.source] = [key, m.tag, m.data]
                         else:
                             if debug: print self.node_id, 'found spoof message data sent over channel from', m.source
