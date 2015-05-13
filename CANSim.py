@@ -9,11 +9,9 @@ from hash_encryption import *
 
 #TODO:
 #   replace node names with actual names
-#   authenticate outgoing messages
 #   create real traffic, one malicious node
 #   change print statements to message transmits/recieves
 #   be able to turn on and off authentication
-#   refresh channel?
 
 bus = [None]
 public_keys = {}
@@ -48,14 +46,24 @@ class CAN_Message:
         assert self.valid_message(), 'Invalid Message sizes'
 
     def valid_message(self):
-        if self.id.bit_length() > MAX_MESSAGE_ID_BYTE_SIZE: return False
-        if self.ack_bit.bit_length() > 1: return False
-        if self.source < 0 or self.source > 255: return False
+        if self.id.bit_length() > MAX_MESSAGE_ID_BYTE_SIZE:
+            print 'Invalid ID length', self.id
+            return False
+        if self.ack_bit.bit_length() > 1:
+            print 'Invalid ACK bit length', self.ack_bit
+            return False
+        if self.source < 0 or self.source > 255:
+            print 'Invalid source node ID', self.source
+            return False
         if self.auth:
-            if len(self.data) > CHANNEL_SETUP_SIGN_BYTE_SIZE or len(self.tag) > (8-CHANNEL_SETUP_SIGN_BYTE_SIZE): return False
+            if len(self.data) > CHANNEL_SETUP_SIGN_BYTE_SIZE or len(self.tag) > (8-CHANNEL_SETUP_SIGN_BYTE_SIZE):
+                print 'Invalid data and signature size', self.tag, self.data
+                return False
             return True
         else:
-            if len(self.tag) > CHANNEL_TAG_BYTE_SIZE or len(self.data) > (8-CHANNEL_TAG_BYTE_SIZE): return False
+            if len(self.tag) > CHANNEL_TAG_BYTE_SIZE or len(self.data) > (8-CHANNEL_TAG_BYTE_SIZE):
+                print 'Invalid data and tag size', self.tag, self.data
+                return False
             return True
 
     def get_ack(self):
@@ -103,11 +111,39 @@ class CAN_Node:
     def has_message(self):
         return len(self.message_queue) > 0
 
+    '''helper function to append to write queue
+        set auth to True if want to send an authenticated message
+        sets up hash_chain if necessary'''
+    def append_write_queue(self, id, data, auth, tick_number):
+        if auth:
+            if self.hash_chain == None or self.hash_chain.is_stale:
+                if debug: print self.node_id, 'setting up a new hash chain'
+                #need to create a new HashChain
+                self.setup_write_channel(10, tick_number)
+                assert self.hash_chain != None and not self.hash_chain.is_stale
+                tag = self.hash_chain.get_next_tag(data)
+                self.message_queue.append(CAN_Message(id, self.node_id, tag, data, tick_number, auth=False))
+
+            else:
+                tag = self.hash_chain.get_next_tag(data)
+                self.message_queue.append(CAN_Message(id, self.node_id, tag, data, tick_number, auth=False))
+
+        else:
+            fake_tag = "1"
+            self.message_queue.append(CAN_Message(id, self.node_id, fake_tag, data, tick_number, auth=False))
+
+
     def process(self, bus, tick_number):
-        r = random.uniform(0, 1)
+        r,s = random.uniform(0, 1), random.uniform(0,1)
         for (b, p) in self.broadcast_properties.items():
-            if r < p:
-                self.message_queue.append(CAN_Message(b, self.node_id, "1", "1", tick_number, auth=False))
+            if r < p: #with certain probability send message
+                data = "GOGOGO"
+                mID = b
+                if s < 0.5: #with half probability send an unauthenticated message
+                    self.append_write_queue(mID, data, True, tick_number)
+                else: #tries to send over channel
+                    self.append_write_queue(mID, data, False, tick_number)
+
 
         if bus[0] != None:  # If there is a message on the bus
             if self.has_message() and bus[0].id == self.message_queue[0].id and bus[0].get_ack():
@@ -139,20 +175,24 @@ class CAN_Node:
                                     channel_key, HASH_FN)
         init_tag,init_message = self.hash_chain.get_init_tag()
 
+        auth_message_queue = [] #store setup messages that we want to send
+
         # breaks down key, signature into separate messages to send
         # only work if using SHA-256 and HMAC_KEY_SIZE = 512
         for i in xrange(int(math.ceil(HMAC_KEY_SIZE / (8*4)))):
             tag = signature[i * 4:(i + 1) * 4]
             data = channel_key[i * 4:(i + 1) * 4]
-            self.message_queue.append(CAN_Message(self.node_id,self.node_id,tag,data,tick_number,auth=True))
+            auth_message_queue.append(CAN_Message(self.node_id,self.node_id,tag,data,tick_number,auth=True))
             if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
 
         #send out initial value
-        self.message_queue.append(CAN_Message(1024+self.node_id,self.node_id,init_tag,init_message,tick_number,auth=False))
+        auth_message_queue.append(CAN_Message(1024+self.node_id,self.node_id,init_tag,init_message,tick_number,auth=False))
+
+        self.message_queue = auth_message_queue + self.message_queue
+
         if log: logfile.write(str(tick_number) + " MESSAGE AUTH NODE" + str(self.node_id) + "\n")
-
-
-        logging.info('\t' + str(self.node_id) + ' setting up write channel with key ' + channel_key)
+        if debug: print '\t', self.node_id, 'setting up write channel with key', \
+            channel_key
 
     def process_message(self, m, tick_number):
         if m.id < MAX_NODE_ID:

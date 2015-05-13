@@ -47,8 +47,10 @@ class HashChain:
 
     ''' Based on the message to be sent and the current position in 
             the hash chain, return the next tag to use'''
+
     def get_next_tag(self, message):
         assert not self.is_stale
+
         chain_tag_bytes = array.array('B', self.chain[self.ptr])
         message_bytes = array.array('B', self.evaluate_hash(message)[0:self.size_tag])
 
@@ -56,7 +58,7 @@ class HashChain:
             chain_tag_bytes[i] = chain_tag_bytes[i] ^ message_bytes[i]
 
         self.ptr += 1
-        if self.ptr > self.chain_length: self.is_stale = True
+        if self.ptr >= self.chain_length: self.is_stale = True
         return chain_tag_bytes.tostring()
 
     def __repr__(self):
@@ -77,7 +79,6 @@ class HashChain:
     def __unwrap_tag(tag, message, hash_func, size_tag):
         chain_tag_bytes = array.array('B', tag)
         message_bytes = array.array('B', HashChain.evaluate_hash2(message, hash_func)[0:size_tag])
-        print chain_tag_bytes, message_bytes
         for i in xrange(size_tag):
             chain_tag_bytes[i] = chain_tag_bytes[i] ^ message_bytes[i]
         return chain_tag_bytes.tostring()
