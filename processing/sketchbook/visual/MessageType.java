@@ -1,6 +1,8 @@
 enum MessageType {
-  STATUS, MESSAGE,
+  STATUS,
       
+     BUS,
+     
      BUS_HEAD,
       
      AVGLATENCY,
@@ -12,4 +14,6 @@ enum MessageType {
      STOTALM,
     
     NEWCHANNELCREATION,
+    
+    RECIEVED
 };

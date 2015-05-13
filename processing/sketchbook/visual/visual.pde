@@ -7,6 +7,10 @@ String node0QSize = "0";
 String node1QSize = "0";
 String node2QSize = "0";
 
+String node0Name = "Motor Controller";
+String node1Name = "Steering Wheel";
+String node2Name = "Brake";
+
 MessageType messageType;
 
 int BUS_X_START = 100;
@@ -69,55 +73,57 @@ void draw() {
     // Stop reading because of an error or file is empty
     noLoop();  
   } else {
-    parseLine(line);
     
+    parseLine(line);
+   
   }
 }
 
 void parseLine(String line) {
+  
   String[] tokens = split(line, ' ');
   textFont(f, 16);  
   textAlign(LEFT);
   fill(WHITE);
   text("Timestep " + tokens[0], 0, 100);
-  
+  if (tokens.length > 2) {
   switch(MessageType.valueOf(tokens[1])) {
     case STATUS:
-      if (tokens[2].equals("NODE0")) {
+      if (tokens[2].equals(node0Name)) {
         node0QSize = tokens[3];
-      } else if (tokens[2].equals("NODE1")) {
+      } else if (tokens[2].equals(node1Name)) {
         node1QSize = tokens[3];
       } else {
         node2QSize = tokens[3];
       }
       break;
-    case MESSAGE:
-      if (tokens[2].equals("DATA")) {
+      case BUS_HEAD:
+        break;
+    case BUS:
+      if (tokens[2].equals("AUTH")) {
         bus.setColor(RED);
-      } else if (tokens[2].equals("AUTH")) {
+      } else if (tokens[2].equals("DATA")) {
         bus.setColor(BLUE);
       } else {
         bus.setColor(BLACK);
       }
       break;
-    case BUS_HEAD:
-      break;
     case SAVGLATENCY:
       average_latency = tokens[2];
       break;
     case AVGLATENCY:
-    if (tokens[2].equals("NODE0")) {
+    if (tokens[2].equals(node0Name)) {
         node0Lat = tokens[3];
-      } else if (tokens[2].equals("NODE1")) {
+      } else if (tokens[2].equals(node1Name)) {
         node1Lat = tokens[3];
       } else {
         node2Lat = tokens[3];
       }
       break;
     case TOTALM:
-    if (tokens[2].equals("NODE0")) {
+    if (tokens[2].equals(node0Name)) {
         node0Tot = tokens[3];
-      } else if (tokens[2].equals("NODE1")) {
+      } else if (tokens[2].equals(node1Name)) {
         node1Tot = tokens[3];
       } else {
         node2Tot = tokens[3];
@@ -129,6 +135,8 @@ void parseLine(String line) {
     case NEWCHANNELCREATION:
       break;
     default:
+      break;
+  }
   }
 }
 
@@ -144,9 +152,9 @@ void drawNodeNames(Bus bus) {
   textAlign(CENTER, CENTER);
   textSize(26);
   fill(GREEN);
-  text("Node 0", bus.X_START, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - OFFSET);
-  text("Node 1", bus.X_MID, bus.Y + bus.CONN_LEN + NODE_SIDE_LENGTH + OFFSET);
-  text("Node 2", bus.X_END, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - OFFSET);
+  text(node0Name, bus.X_START, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - OFFSET);
+  text(node1Name, bus.X_MID, bus.Y + bus.CONN_LEN + NODE_SIDE_LENGTH + OFFSET);
+  text(node2Name, bus.X_END, bus.Y - bus.CONN_LEN - NODE_SIDE_LENGTH - OFFSET);
 }
 
 void updateNodeInfo(Bus bus) {
